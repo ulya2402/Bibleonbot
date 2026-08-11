@@ -1,0 +1,8 @@
+name = "bibleonbot-backend"
+main = "src/index.ts"
+compatibility_date = "2026-08-08"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "alkitab-db"
+database_id = "0a106461-72b4-47f9-8925-aa8205fb7200"
