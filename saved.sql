@@ -1,10 +1,13 @@
-CREATE TABLE IF NOT EXISTS saved_verses (
+DROP TABLE IF EXISTS saved_verses;
+
+CREATE TABLE saved_verses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT, -- Menyimpan ID Telegram pengguna agar datanya tidak tertukar
+    user_id TEXT,
     book TEXT,
     chapter INTEGER,
     verse INTEGER,
     content TEXT,
     color TEXT,
+    note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

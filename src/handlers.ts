@@ -60,8 +60,8 @@ export class BotHandler {
 
         if (text.startsWith('/start')) {
 
-            const webAppUrl = 'https://bibleonbot-webapp.pages.dev/?v=2';
-            
+            const webAppUrl = 'https://main.bibleonbot-webapp.pages.dev';
+
             const replyMarkup = {
                 inline_keyboard: [[
                     { text: t.open_webapp, web_app: { url: webAppUrl } }

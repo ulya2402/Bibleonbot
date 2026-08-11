@@ -45,7 +45,6 @@ const BIBLE_BOOKS = [
   { id: 'Why', name: 'Wahyu', chapters: 22, test: 'PB' }
 ];
 
-
 const BIBLE_VERSIONS = [{ id: 'TB', name: 'Terjemahan Baru (TB)' }];
 
 export default function App() {
@@ -53,9 +52,8 @@ export default function App() {
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(true); 
+  const [isAdmin, setIsAdmin] = useState(true);
   
-  // SECARA DEFAULT KITA SET SEBAGAI ADMIN ID AGAR PASTI JALAN MESKI DI PC
   const [userId, setUserId] = useState<string>(ADMIN_ID.toString());
   
   const [dailyVerse, setDailyVerse] = useState<any>(null);
@@ -73,6 +71,9 @@ export default function App() {
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
 
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchHomeData = async () => {
@@ -85,7 +86,9 @@ export default function App() {
         setChannels(data.channels || []);
         setNews(data.news || []);
       }
-    } catch (error) { console.error('API Error:', error); }
+    } catch (error) { 
+      console.error('API Fetch Error:', error); 
+    }
   };
 
   useEffect(() => {
@@ -100,8 +103,9 @@ export default function App() {
            setIsAdmin(Number(currentUserId) === ADMIN_ID);
         }
       }
-    } catch (error) { console.warn('Bukan di dalam Telegram'); }
-
+    } catch (error) { 
+      console.warn('Not in Telegram environment'); 
+    }
     fetchHomeData();
   }, []);
 
@@ -115,21 +119,26 @@ export default function App() {
           const bibleData = await resBible.json();
           setBibleVerses(bibleData);
         }
-      } catch (error) { console.error('API Error:', error); } 
-      finally { setIsLoadingBible(false); }
+      } catch (error) { 
+        console.error('API Fetch Error:', error); 
+      } 
+      finally { 
+        setIsLoadingBible(false); 
+      }
     };
     fetchBibleVerses();
   }, [currentBook, currentChapter, currentVersion]); 
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('.verse-item') && !(e.target as HTMLElement).closest('.action-menu') && selectedVerses.length > 0) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.note-modal-box') && selectedVerses.length > 0 && !isNoteModalOpen) {
         setSelectedVerses([]);
       }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [selectedVerses]);
+  }, [selectedVerses, isNoteModalOpen]);
 
   const handleVerseSelect = (verseId: number) => {
     setSelectedVerses(prev => prev.includes(verseId) ? prev.filter(id => id !== verseId) : [...prev, verseId]);
@@ -142,20 +151,27 @@ export default function App() {
     }, 400); 
   };
 
-  const handleTouchEnd = () => { if (pressTimer.current) clearTimeout(pressTimer.current); };
+  const handleTouchEnd = () => { 
+    if (pressTimer.current) clearTimeout(pressTimer.current); 
+  };
 
   const triggerAction = (msg: string) => {
     setToastMsg(msg);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2000);
-    setSelectedVerses([]);
   };
 
-  // 🔹 FUNGSI SIMPAN AYAT DENGAN DETEKTOR ERROR
-  const saveVerseColor = async (colorName: string) => {
-    const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
+  const openNoteModal = () => {
+    if (selectedVerses.length === 0) return;
+    setIsNoteModalOpen(true);
+  };
 
-    if (selectedVerseData.length === 0) return alert("Tidak ada ayat yang dipilih!");
+  const saveVerseData = async (colorParam: string, noteParam: string) => {
+    const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
+    if (selectedVerseData.length === 0) {
+      alert("Tidak ada ayat yang dipilih!");
+      return;
+    }
 
     try {
       for (const v of selectedVerseData) {
@@ -168,22 +184,23 @@ export default function App() {
             chapter: currentChapter,
             verse: v.verse,
             content: v.content,
-            color: colorName
+            color: colorParam,
+            note: noteParam
           })
         });
         
-        // JIKA SERVER MENOLAK (ERROR 500 / 404), TAMPILKAN POPUP
         if (!res.ok) {
-           const errorData = await res.json().catch(() => ({error: 'Not Found / Rute API belum di-deploy'}));
+           const errorData = await res.json().catch(() => ({error: 'Not Found'}));
            alert("GAGAL MENYIMPAN! Error Server: " + errorData.error);
            return; 
         }
       }
       
-      // Jika berhasil, pindah tab dan notifikasi
       setActiveTab('saved'); 
-      triggerAction(`Ayat ditandai warna ${colorName}!`);
-      
+      triggerAction(noteParam ? 'Catatan disimpan!' : `Ayat ditandai warna!`);
+      setIsNoteModalOpen(false);
+      setNoteInput('');
+      setSelectedVerses([]);
     } catch (e: any) {
       alert("Gagal koneksi ke server Cloudflare. Pastikan internet menyala.");
     }
@@ -197,6 +214,7 @@ export default function App() {
     const fullText = `${selectedTexts}\n(${currentBook.name} ${currentChapter}) - Alkitab ID`;
     navigator.clipboard.writeText(fullText);
     triggerAction('Ayat disalin ke Papan Klip!');
+    setSelectedVerses([]);
   };
 
   return (
@@ -209,7 +227,7 @@ export default function App() {
         </div>
         <div className="flex gap-2">
           {isAdmin && (
-            <button onClick={() => setActiveTab('admin')} className={`p-2 rounded-full transition ${activeTab === 'admin' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+            <button onClick={() => { setActiveTab('admin'); setSelectedVerses([]); }} className={`p-2 rounded-full transition ${activeTab === 'admin' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
               <i className="ph-bold ph-shield-star text-lg"></i>
             </button>
           )}
@@ -302,23 +320,41 @@ export default function App() {
         </div>
       )}
 
-      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-2xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 ? 'bottom-8 opacity-100 visible translate-y-0' : 'bottom-0 opacity-0 invisible translate-y-10'}`}>
+      {isNoteModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white w-full max-w-[500px] rounded-t-[1.5rem] p-6 shadow-2xl note-modal-box">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-extrabold text-lg text-gray-900">Tambahkan Catatan</h3>
+              <button onClick={() => setIsNoteModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 transition hover:bg-gray-200">
+                <i className="ph-bold ph-x text-sm"></i>
+              </button>
+            </div>
+            <textarea 
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-[13px] focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition resize-none h-32 mb-4" 
+              placeholder="Tulis renungan atau catatan Anda di sini..."
+            ></textarea>
+            <button onClick={() => saveVerseData('', noteInput)} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition">Simpan Catatan</button>
+          </div>
+        </div>
+      )}
+
+      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-2xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen ? 'bottom-8 opacity-100 visible translate-y-0' : 'bottom-0 opacity-0 invisible translate-y-10'}`}>
         <div className="flex gap-1">
-          {/* Tombol Simpan Warna disambungkan di sini */}
-          <button onClick={() => saveVerseColor('Kuning')} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+          <button onClick={() => saveVerseData('Kuning', '')} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
             <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-inner"></div>
             <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Warna</span>
           </button>
-          
           <button onClick={handleCopy} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
             <i className="ph-bold ph-copy text-[18px]"></i>
             <span className="text-[9px] font-bold uppercase tracking-wider">Salin</span>
           </button>
-          <button onClick={() => triggerAction('Fitur Catat!')} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
+          <button onClick={openNoteModal} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
             <i className="ph-bold ph-pencil-simple text-[18px]"></i>
             <span className="text-[9px] font-bold uppercase tracking-wider">Catat</span>
           </button>
-          <button onClick={() => triggerAction('Fitur Bagikan!')} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
+          <button onClick={() => { triggerAction('Link dibagikan!'); setSelectedVerses([]); }} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
             <i className="ph-bold ph-share-network text-[18px]"></i>
             <span className="text-[9px] font-bold uppercase tracking-wider">Share</span>
           </button>
@@ -329,22 +365,22 @@ export default function App() {
         </button>
       </div>
 
-      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${selectedVerses.length > 0 ? 'bottom-[-100px] opacity-0 invisible' : 'bottom-6 opacity-100 visible'}`}>
-        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
+      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen) ? 'bottom-[-100px] opacity-0 invisible' : 'bottom-6 opacity-100 visible'}`}>
+        <button onClick={() => { setActiveTab('home'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
           <i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i>
           <span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span>
         </button>
-        <button onClick={() => setActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
+        <button onClick={() => { setActiveTab('bible'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
           <i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i>
           <span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span>
         </button>
-        <button onClick={() => setActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
+        <button onClick={() => { setActiveTab('saved'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
           <i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i>
           <span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span>
         </button>
       </nav>
 
-      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-5 py-3 rounded-full text-[13px] font-semibold shadow-2xl transition-all duration-300 z-[110] flex items-center gap-2 border border-gray-800 ${showToast ? 'top-6 opacity-100 scale-100' : '-top-10 opacity-0 scale-95'}`}>
+      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-5 py-3 rounded-full text-[13px] font-semibold shadow-2xl transition-all duration-300 z-[130] flex items-center gap-2 border border-gray-800 ${showToast ? 'top-6 opacity-100 scale-100' : '-top-10 opacity-0 scale-95'}`}>
         <i className="ph-fill ph-check-circle text-green-400 text-lg"></i>
         <span>{toastMsg}</span>
       </div>
