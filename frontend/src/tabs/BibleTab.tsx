@@ -1,13 +1,22 @@
 export default function BibleTab({ 
   currentBook, currentChapter, currentVersion,
   setSelectorStep, setIsSelectorOpen,
-  isLoadingBible, bibleVerses,
-  selectedVerses, handleVerseSelect, handleTouchStart, handleTouchEnd
+  isLoadingBible, bibleVerses, savedVerses,
+  selectedVerses, handleVerseSelect, handleTouchStart, handleTouchEnd,
+  setViewingNote
 }: any) {
+
+  const COLOR_MAP: any = {
+    'yellow': 'bg-[#fef08a]/60 text-yellow-900 rounded-md px-1',
+    'green': 'bg-[#bbf7d0]/60 text-green-900 rounded-md px-1',
+    'blue': 'bg-[#bfdbfe]/60 text-blue-900 rounded-md px-1',
+    'pink': 'bg-[#fbcfe8]/60 text-pink-900 rounded-md px-1',
+    'purple': 'bg-[#e9d5ff]/60 text-purple-900 rounded-md px-1',
+  };
 
   const renderVerseContent = (text: string) => {
     const parts = text.split(/(\[[^\]]+\]|\([^\)]+\))/g);
-    return parts.map((part, index) => {
+    return parts.map((part: string, index: number) => {
       if (part.startsWith('[') || part.startsWith('(')) {
         return (
           <span key={index} className="inline-block text-[11px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md mx-1 align-middle opacity-90">
@@ -21,7 +30,6 @@ export default function BibleTab({
 
   return (
     <div className="animate-fadeIn h-full flex flex-col">
-      {/* HEADER SELEKSI KITAB */}
       <div className="flex-none sticky top-0 z-30 bg-[#fafafa]/95 backdrop-blur-md px-5 py-3 border-b border-gray-200 flex gap-2 overflow-x-auto shadow-sm no-scrollbar">
         <button 
           onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
@@ -61,23 +69,42 @@ export default function BibleTab({
               ))}
             </div>
           ) : bibleVerses.length > 0 ? (
-            bibleVerses.map((verseData: any) => (
-              <div 
-                key={verseData.id}
-                onClick={() => handleVerseSelect(verseData.id)}
-                onTouchStart={() => handleTouchStart(verseData.id)}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchEnd}
-                className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${selectedVerses.includes(verseData.id) ? 'bg-[#f3f4f6] scale-[0.98]' : 'bg-transparent hover:bg-white'}`}
-              >
-                <span className={`text-[12px] font-extrabold shrink-0 w-5 text-right pt-[3px] ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
-                  {verseData.verse}
-                </span>
-                <span className={`text-[15px] leading-relaxed font-medium flex-1 ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'}`}>
-                  {renderVerseContent(verseData.content)}
-                </span>
-              </div>
-            ))
+            bibleVerses.map((verseData: any) => {
+              const savedMatch = savedVerses.find((sv: any) => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === verseData.verse);
+              const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
+              const hasNote = savedMatch && savedMatch.note;
+
+              return (
+                <div 
+                  key={verseData.id}
+                  onClick={() => handleVerseSelect(verseData.id)}
+                  onTouchStart={() => handleTouchStart(verseData.id)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchEnd}
+                  className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${selectedVerses.includes(verseData.id) ? 'bg-[#eceef2] scale-[0.98]' : 'bg-transparent hover:bg-white'}`}
+                >
+                  <div className="flex flex-col items-center gap-1.5 shrink-0 w-6 pt-[3px]">
+                    <span className={`text-[12px] font-extrabold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {verseData.verse}
+                    </span>
+                    {hasNote && (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setViewingNote({ book: currentBook.name, chapter: currentChapter, verse: verseData.verse, content: verseData.content, note: savedMatch.note }); 
+                        }}
+                        className="w-6 h-6 flex items-center justify-center bg-gray-900 text-white rounded-full hover:bg-gray-700 transition shadow-sm"
+                      >
+                        <i className="ph-fill ph-notebook text-[11px]"></i>
+                      </button>
+                    )}
+                  </div>
+                  <span className={`text-[15px] leading-relaxed font-medium flex-1 ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'} ${highlightClass}`}>
+                    {renderVerseContent(verseData.content)}
+                  </span>
+                </div>
+              )
+            })
           ) : (
             <div className="text-center py-10">
               <i className="ph-duotone ph-warning-circle text-4xl text-gray-300 mb-3"></i>

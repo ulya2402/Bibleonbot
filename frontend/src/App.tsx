@@ -60,6 +60,7 @@ export default function App() {
   const [communities, setCommunities] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
   const [news, setNews] = useState<any[]>([]);
+  const [savedVerses, setSavedVerses] = useState<any[]>([]);
   
   const [currentBook, setCurrentBook] = useState(BIBLE_BOOKS[0]);
   const [currentChapter, setCurrentChapter] = useState(1);
@@ -73,6 +74,8 @@ export default function App() {
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [noteInput, setNoteInput] = useState('');
+  const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
+  const [viewingNote, setViewingNote] = useState<any>(null);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,6 +91,17 @@ export default function App() {
       }
     } catch (error) { 
       console.error('API Fetch Error:', error); 
+    }
+  };
+
+  const fetchSavedData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/saved-verses?userId=${userId}&t=${new Date().getTime()}`);
+      if (res.ok) {
+        setSavedVerses(await res.json());
+      }
+    } catch (error) {
+      console.error('API Fetch Saved Error:', error);
     }
   };
 
@@ -108,6 +122,10 @@ export default function App() {
     }
     fetchHomeData();
   }, []);
+
+  useEffect(() => {
+    fetchSavedData();
+  }, [userId, activeTab]);
 
   useEffect(() => {
     const fetchBibleVerses = async () => {
@@ -132,16 +150,18 @@ export default function App() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.note-modal-box') && selectedVerses.length > 0 && !isNoteModalOpen) {
+      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.note-modal-box') && selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote) {
         setSelectedVerses([]);
+        setIsColorPaletteOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [selectedVerses, isNoteModalOpen]);
+  }, [selectedVerses, isNoteModalOpen, viewingNote]);
 
   const handleVerseSelect = (verseId: number) => {
     setSelectedVerses(prev => prev.includes(verseId) ? prev.filter(id => id !== verseId) : [...prev, verseId]);
+    setIsColorPaletteOpen(false);
   };
 
   const handleTouchStart = (verseId: number) => {
@@ -158,23 +178,33 @@ export default function App() {
   const triggerAction = (msg: string) => {
     setToastMsg(msg);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
+    setTimeout(() => setShowToast(false), 2500);
   };
 
   const openNoteModal = () => {
     if (selectedVerses.length === 0) return;
+    let existingNote = '';
+    if (selectedVerses.length === 1) {
+      const v = bibleVerses.find(bv => bv.id === selectedVerses[0]);
+      if (v) {
+        const match = savedVerses.find(sv => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === v.verse);
+        if (match && match.note) existingNote = match.note;
+      }
+    }
+    setNoteInput(existingNote);
     setIsNoteModalOpen(true);
   };
 
-  const saveVerseData = async (colorParam: string, noteParam: string) => {
+  const saveVerseData = async (colorParam: string | null, noteParam: string | null) => {
     const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
-    if (selectedVerseData.length === 0) {
-      alert("Tidak ada ayat yang dipilih!");
-      return;
-    }
+    if (selectedVerseData.length === 0) return;
 
     try {
       for (const v of selectedVerseData) {
+        const existing = savedVerses.find(sv => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === v.verse);
+        const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
+        const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
+
         const res = await fetch(`${API_URL}/saved-verses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -184,37 +214,39 @@ export default function App() {
             chapter: currentChapter,
             verse: v.verse,
             content: v.content,
-            color: colorParam,
-            note: noteParam
+            color: finalColor,
+            note: finalNote
           })
         });
         
         if (!res.ok) {
-           const errorData = await res.json().catch(() => ({error: 'Not Found'}));
-           alert("GAGAL MENYIMPAN! Error Server: " + errorData.error);
+           const errorData = await res.json().catch(() => ({error: 'API Error'}));
+           triggerAction("Gagal menyimpan: " + errorData.error);
            return; 
         }
       }
       
-      setActiveTab('saved'); 
-      triggerAction(noteParam ? 'Catatan disimpan!' : `Ayat ditandai warna!`);
+      await fetchSavedData();
+      triggerAction(noteParam !== null ? 'Catatan tersimpan!' : 'Warna berhasil diterapkan!');
       setIsNoteModalOpen(false);
+      setIsColorPaletteOpen(false);
       setNoteInput('');
       setSelectedVerses([]);
     } catch (e: any) {
-      alert("Gagal koneksi ke server Cloudflare. Pastikan internet menyala.");
+      triggerAction("Gagal menyambung ke server.");
     }
   };
 
   const handleCopy = () => {
     const selectedTexts = bibleVerses
       .filter(v => selectedVerses.includes(v.id))
-      .map(v => `${v.verse}. ${v.content}`)
-      .join('\n');
-    const fullText = `${selectedTexts}\n(${currentBook.name} ${currentChapter}) - Alkitab ID`;
+      .map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse}`)
+      .join('\n\n');
+    const fullText = `${selectedTexts}\n\n📖 @bibleonbot`;
     navigator.clipboard.writeText(fullText);
-    triggerAction('Ayat disalin ke Papan Klip!');
+    triggerAction('Ayat disalin dengan format Kutipan!');
     setSelectedVerses([]);
+    setIsColorPaletteOpen(false);
   };
 
   return (
@@ -231,9 +263,6 @@ export default function App() {
               <i className="ph-bold ph-shield-star text-lg"></i>
             </button>
           )}
-          <button className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition text-gray-600">
-            <i className="ph-bold ph-bell text-lg"></i>
-          </button>
         </div>
       </header>
 
@@ -243,12 +272,13 @@ export default function App() {
           <BibleTab 
             currentBook={currentBook} currentChapter={currentChapter} currentVersion={currentVersion}
             setSelectorStep={setSelectorStep} setIsSelectorOpen={setIsSelectorOpen}
-            isLoadingBible={isLoadingBible} bibleVerses={bibleVerses}
+            isLoadingBible={isLoadingBible} bibleVerses={bibleVerses} savedVerses={savedVerses}
             selectedVerses={selectedVerses} handleVerseSelect={handleVerseSelect}
             handleTouchStart={handleTouchStart} handleTouchEnd={handleTouchEnd}
+            setViewingNote={setViewingNote}
           />
         )}
-        {activeTab === 'saved' && <SavedTab userId={userId} />}
+        {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
         
         {activeTab === 'admin' && (
           <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} />
@@ -257,7 +287,7 @@ export default function App() {
 
       {isSelectorOpen && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-gray-900/70 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
+          <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
           <div className="relative bg-white w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-white rounded-t-[1.5rem]">
               {selectorStep === 'chapter' ? (
@@ -321,10 +351,10 @@ export default function App() {
       )}
 
       {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white w-full max-w-[500px] rounded-t-[1.5rem] p-6 shadow-2xl note-modal-box">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-extrabold text-lg text-gray-900">Tambahkan Catatan</h3>
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-gray-900/60 p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white w-full max-w-[500px] max-h-[90vh] overflow-y-auto rounded-t-[1.5rem] sm:rounded-[1.5rem] p-6 shadow-2xl note-modal-box">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="font-extrabold text-lg text-gray-900">Catatan Renungan</h3>
               <button onClick={() => setIsNoteModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 transition hover:bg-gray-200">
                 <i className="ph-bold ph-x text-sm"></i>
               </button>
@@ -332,40 +362,85 @@ export default function App() {
             <textarea 
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-[13px] focus:outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 transition resize-none h-32 mb-4" 
-              placeholder="Tulis renungan atau catatan Anda di sini..."
+              className="w-full bg-[#fafafa] border border-gray-200 rounded-2xl p-4 text-[14px] leading-relaxed text-gray-800 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition resize-none h-40 mb-5 shadow-inner" 
+              placeholder="Ketik renungan atau pemahaman Anda di sini..."
             ></textarea>
-            <button onClick={() => saveVerseData('', noteInput)} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition">Simpan Catatan</button>
+            <div className="flex gap-3">
+              <button onClick={() => setIsNoteModalOpen(false)} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-[13px] hover:bg-gray-200 transition">Batal</button>
+              <button onClick={() => saveVerseData(null, noteInput)} className="flex-1 py-3.5 bg-gray-900 text-white rounded-xl font-bold text-[13px] hover:bg-gray-800 transition">Simpan Catatan</button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-2xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen ? 'bottom-8 opacity-100 visible translate-y-0' : 'bottom-0 opacity-0 invisible translate-y-10'}`}>
-        <div className="flex gap-1">
-          <button onClick={() => saveVerseData('Kuning', '')} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
-            <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-inner"></div>
-            <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Warna</span>
-          </button>
-          <button onClick={handleCopy} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
-            <i className="ph-bold ph-copy text-[18px]"></i>
-            <span className="text-[9px] font-bold uppercase tracking-wider">Salin</span>
-          </button>
-          <button onClick={openNoteModal} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
-            <i className="ph-bold ph-pencil-simple text-[18px]"></i>
-            <span className="text-[9px] font-bold uppercase tracking-wider">Catat</span>
-          </button>
-          <button onClick={() => { triggerAction('Link dibagikan!'); setSelectedVerses([]); }} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
-            <i className="ph-bold ph-share-network text-[18px]"></i>
-            <span className="text-[9px] font-bold uppercase tracking-wider">Share</span>
-          </button>
+      {viewingNote && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-900/60 p-5 animate-[fadeIn_0.2s_ease-out] note-modal-box">
+          <div className="bg-white w-full max-w-[400px] rounded-[1.5rem] p-6 shadow-2xl relative">
+            <button onClick={() => setViewingNote(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
+              <i className="ph-bold ph-x text-sm"></i>
+            </button>
+            <div className="flex items-center gap-2 mb-4 text-gray-400">
+              <i className="ph-fill ph-notebook text-xl"></i>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest">{viewingNote.book} {viewingNote.chapter}:{viewingNote.verse}</span>
+            </div>
+            <p className="text-[14px] text-gray-800 font-medium leading-relaxed mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              "{viewingNote.content}"
+            </p>
+            <div className="border-l-[3px] border-gray-900 pl-4 py-1">
+              <p className="text-[14px] text-gray-900 leading-relaxed font-semibold italic">
+                {viewingNote.note}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="w-px h-8 bg-gray-700 mx-1"></div>
-        <button onClick={() => setSelectedVerses([])} className="w-14 h-12 flex items-center justify-center hover:bg-gray-800 rounded-xl transition text-gray-400">
-          <i className="ph-bold ph-x text-xl"></i>
-        </button>
+      )}
+
+      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-[1.25rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'bottom-8 opacity-100 visible translate-y-0' : 'bottom-0 opacity-0 invisible translate-y-10'}`}>
+        {!isColorPaletteOpen ? (
+          <div className="flex gap-1 w-full justify-between pr-2">
+            <div className="flex gap-1">
+              <button onClick={() => setIsColorPaletteOpen(true)} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
+                <div className="w-4 h-4 rounded-full bg-yellow-300 shadow-inner"></div>
+                <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Warna</span>
+              </button>
+              <button onClick={handleCopy} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
+                <i className="ph-bold ph-copy text-[18px]"></i>
+                <span className="text-[9px] font-bold uppercase tracking-wider">Salin</span>
+              </button>
+              <button onClick={openNoteModal} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
+                <i className="ph-bold ph-pencil-simple text-[18px]"></i>
+                <span className="text-[9px] font-bold uppercase tracking-wider">Catat</span>
+              </button>
+              <button onClick={() => { triggerAction('Gunakan tombol Salin (Copy) untuk Share ke chat!'); setIsColorPaletteOpen(false); }} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
+                <i className="ph-bold ph-share-network text-[18px]"></i>
+                <span className="text-[9px] font-bold uppercase tracking-wider">Share</span>
+              </button>
+            </div>
+            <div className="flex items-center">
+              <div className="w-px h-8 bg-gray-700 mx-2"></div>
+              <button onClick={() => { setSelectedVerses([]); setIsColorPaletteOpen(false); }} className="w-12 h-12 flex items-center justify-center hover:bg-gray-800 rounded-xl transition text-gray-400">
+                <i className="ph-bold ph-x text-xl"></i>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 w-full justify-between items-center px-2 py-1 animate-[fadeIn_0.2s_ease-out]">
+            <div className="flex gap-3">
+              <button onClick={() => saveVerseData('', null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 transition hover:scale-110"><i className="ph-bold ph-x text-sm"></i></button>
+              <button onClick={() => saveVerseData('yellow', null)} className="w-8 h-8 rounded-full bg-[#fef08a] shadow-[0_0_0_2px_#1f2937,0_0_0_4px_#fef08a] transition hover:scale-110"></button>
+              <button onClick={() => saveVerseData('green', null)} className="w-8 h-8 rounded-full bg-[#bbf7d0] hover:scale-110 transition"></button>
+              <button onClick={() => saveVerseData('blue', null)} className="w-8 h-8 rounded-full bg-[#bfdbfe] hover:scale-110 transition"></button>
+              <button onClick={() => saveVerseData('pink', null)} className="w-8 h-8 rounded-full bg-[#fbcfe8] hover:scale-110 transition"></button>
+              <button onClick={() => saveVerseData('purple', null)} className="w-8 h-8 rounded-full bg-[#e9d5ff] hover:scale-110 transition"></button>
+            </div>
+            <button onClick={() => setIsColorPaletteOpen(false)} className="w-10 h-10 flex items-center justify-center bg-gray-800 rounded-full transition text-gray-300 hover:text-white">
+              <i className="ph-bold ph-arrow-u-up-left text-lg"></i>
+            </button>
+          </div>
+        )}
       </div>
 
-      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen) ? 'bottom-[-100px] opacity-0 invisible' : 'bottom-6 opacity-100 visible'}`}>
+      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote) ? 'bottom-[-100px] opacity-0 invisible' : 'bottom-6 opacity-100 visible'}`}>
         <button onClick={() => { setActiveTab('home'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
           <i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i>
           <span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span>
@@ -380,7 +455,7 @@ export default function App() {
         </button>
       </nav>
 
-      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-5 py-3 rounded-full text-[13px] font-semibold shadow-2xl transition-all duration-300 z-[130] flex items-center gap-2 border border-gray-800 ${showToast ? 'top-6 opacity-100 scale-100' : '-top-10 opacity-0 scale-95'}`}>
+      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'top-6 opacity-100 scale-100' : '-top-10 opacity-0 scale-95'}`}>
         <i className="ph-fill ph-check-circle text-green-400 text-lg"></i>
         <span>{toastMsg}</span>
       </div>

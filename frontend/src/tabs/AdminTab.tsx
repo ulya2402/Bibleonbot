@@ -3,258 +3,221 @@ import { useState } from 'react';
 const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
 
 export default function AdminTab({ triggerAction, refreshHomeData, news = [], communities = [], channels = [], dailyVerse }: any) {
+  const [adminSection, setAdminSection] = useState<'daily' | 'community' | 'channel' | 'news'>('daily');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
   const [dvRef, setDvRef] = useState(''); 
   const [dvText, setDvText] = useState('');
   
-  const [newsId, setNewsId] = useState<number | null>(null);
-  const [newsTitle, setNewsTitle] = useState(''); 
-  const [newsCategory, setNewsCategory] = useState('');
-  const [newsLink, setNewsLink] = useState(''); 
-  const [newsImage, setNewsImage] = useState('');
-  
-  const [comId, setComId] = useState<number | null>(null);
-  const [comName, setComName] = useState(''); 
-  const [comMembers, setComMembers] = useState('');
-  const [comCategory, setComCategory] = useState(''); 
-  const [comLink, setComLink] = useState('');
-  
-  const [chId, setChId] = useState<number | null>(null);
-  const [chName, setChName] = useState(''); 
-  const [chDesc, setChDesc] = useState('');
-  const [chLink, setChLink] = useState('');
+  const [editId, setEditId] = useState<number | null>(null);
+  const [formName, setFormName] = useState(''); 
+  const [formDesc, setFormDesc] = useState('');
+  const [formLink, setFormLink] = useState(''); 
+  const [formImage, setFormImage] = useState('');
 
-  const [isLoading, setIsLoading] = useState(false);
+  const openModal = (item?: any) => {
+    if (item) {
+      setEditId(item.id);
+      if (adminSection === 'news') {
+        setFormName(item.title); setFormDesc(item.category); setFormLink(item.link); setFormImage(item.image_url);
+      } else if (adminSection === 'community') {
+        setFormName(item.name); setFormDesc(item.category); setFormLink(item.link); setFormImage(item.member_count);
+      } else {
+        setFormName(item.name); setFormDesc(item.category); setFormLink(item.link);
+      }
+    } else {
+      setEditId(null); setFormName(''); setFormDesc(''); setFormLink(''); setFormImage('');
+    }
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => { setIsModalOpen(false); };
 
   const saveDailyVerse = async () => {
     if (!dvRef || !dvText) return triggerAction('Harap isi referensi & teks!');
     setIsLoading(true);
     try {
       const res = await fetch(`${API_URL}/admin/daily-verse`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reference: dvRef, text: dvText }) });
-      if ((await res.json()).success) { triggerAction('Ayat Hari Ini Diperbarui!'); await refreshHomeData(); setDvRef(''); setDvText(''); }
+      if ((await res.json()).success) { 
+        triggerAction('Ayat Hari Ini Diperbarui!'); 
+        await refreshHomeData(); 
+        setDvRef(''); 
+        setDvText(''); 
+      }
     } catch (e) { 
       triggerAction('Gagal menyimpan.'); 
     }
     setIsLoading(false);
   };
 
-  const handleEditNews = (n: any) => { 
-    setNewsId(n.id); setNewsTitle(n.title); setNewsCategory(n.category); setNewsLink(n.link); setNewsImage(n.image_url); 
-    triggerAction('Silakan edit di form Berita'); 
-  };
-  
-  const handleDeleteNews = async (id: number) => {
-    if(!confirm("Yakin hapus berita ini dari beranda?")) return;
+  const handleDelete = async (id: number) => {
+    if(!confirm("Yakin menghapus data ini?")) return;
     setIsLoading(true);
     try {
-      await fetch(`${API_URL}/admin/news?id=${id}`, { method: 'DELETE' });
+      const endpoint = adminSection === 'news' ? 'news' : 'community';
+      await fetch(`${API_URL}/admin/${endpoint}?id=${id}`, { method: 'DELETE' });
       await refreshHomeData(); 
-      triggerAction('Berita Dihapus!'); 
-    } catch (e) {
-      triggerAction('Gagal menghapus.');
+      triggerAction('Data dihapus!'); 
+    } catch (e) { 
+      triggerAction('Gagal menghapus.'); 
     }
     setIsLoading(false);
   };
   
-  const saveNews = async () => {
-    if (!newsTitle || !newsLink) return triggerAction('Judul dan Link wajib diisi!');
+  const handleSave = async () => {
+    if (!formName || !formLink) return triggerAction('Lengkapi isian wajib!');
     setIsLoading(true);
-    const method = newsId ? 'PUT' : 'POST';
     try {
-      await fetch(`${API_URL}/admin/news`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: newsId, title: newsTitle, category: newsCategory, image_url: newsImage, link: newsLink }) });
-      triggerAction(newsId ? 'Berita Diperbarui!' : 'Berita Ditambahkan!');
-      await refreshHomeData(); 
-      setNewsId(null); setNewsTitle(''); setNewsCategory(''); setNewsLink(''); setNewsImage(''); 
-    } catch (e) {
-      triggerAction('Gagal menyimpan berita.');
-    }
-    setIsLoading(false);
-  };
+      const method = editId ? 'PUT' : 'POST';
+      let payload = {};
+      let endpoint = '';
 
-  const handleEditCom = (c: any) => { 
-    setComId(c.id); setComName(c.name); setComMembers(c.member_count); setComCategory(c.category); setComLink(c.link); 
-    triggerAction('Silakan edit di form Komunitas'); 
-  };
-  
-  const handleDeleteCom = async (id: number) => {
-    if(!confirm("Yakin hapus komunitas ini?")) return;
-    setIsLoading(true);
-    try {
-      await fetch(`${API_URL}/admin/community?id=${id}`, { method: 'DELETE' });
-      await refreshHomeData(); 
-      triggerAction('Komunitas Dihapus!'); 
-    } catch (e) {
-      triggerAction('Gagal menghapus.');
-    }
-    setIsLoading(false);
-  };
-  
-  const saveCommunity = async () => {
-    if (!comName || !comLink) return triggerAction('Nama dan Link wajib diisi!');
-    setIsLoading(true);
-    const method = comId ? 'PUT' : 'POST';
-    try {
-      await fetch(`${API_URL}/admin/community`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: comId, name: comName, member_count: comMembers, category: comCategory, link: comLink, is_channel: 0 }) });
-      triggerAction(comId ? 'Komunitas Diperbarui!' : 'Komunitas Ditambahkan!');
-      await refreshHomeData(); 
-      setComId(null); setComName(''); setComMembers(''); setComCategory(''); setComLink(''); 
-    } catch (e) {
-      triggerAction('Gagal menyimpan komunitas.');
-    }
-    setIsLoading(false);
-  };
+      if (adminSection === 'news') {
+        endpoint = 'news';
+        payload = { id: editId, title: formName, category: formDesc, image_url: formImage, link: formLink };
+      } else {
+        endpoint = 'community';
+        payload = { id: editId, name: formName, member_count: adminSection === 'community' ? formImage : '', category: formDesc, link: formLink, is_channel: adminSection === 'channel' ? 1 : 0 };
+      }
 
-  const handleEditCh = (ch: any) => { 
-    setChId(ch.id); setChName(ch.name); setChDesc(ch.category); setChLink(ch.link); 
-    triggerAction('Silakan edit di form Channel'); 
-  };
-  
-  const handleDeleteCh = async (id: number) => {
-    if(!confirm("Yakin hapus channel ini?")) return;
-    setIsLoading(true);
-    try {
-      await fetch(`${API_URL}/admin/community?id=${id}`, { method: 'DELETE' });
+      await fetch(`${API_URL}/admin/${endpoint}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      triggerAction(editId ? 'Data diperbarui!' : 'Data ditambahkan!');
       await refreshHomeData(); 
-      triggerAction('Channel Dihapus!'); 
-    } catch (e) {
-      triggerAction('Gagal menghapus.');
-    }
-    setIsLoading(false);
-  };
-  
-  const saveChannel = async () => {
-    if (!chName || !chLink) return triggerAction('Nama dan Link wajib diisi!');
-    setIsLoading(true);
-    const method = chId ? 'PUT' : 'POST';
-    try {
-      await fetch(`${API_URL}/admin/community`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: chId, name: chName, member_count: '', category: chDesc, link: chLink, is_channel: 1 }) });
-      triggerAction(chId ? 'Channel Diperbarui!' : 'Channel Ditambahkan!');
-      await refreshHomeData(); 
-      setChId(null); setChName(''); setChDesc(''); setChLink(''); 
-    } catch (e) {
-      triggerAction('Gagal menyimpan channel.');
+      closeModal();
+    } catch (e) { 
+      triggerAction('Gagal menyimpan.'); 
     }
     setIsLoading(false);
   };
 
   return (
-    <div className="animate-fadeIn px-5 pt-5 space-y-6 pb-10">
-      <div className="mb-6">
+    <div className="animate-fadeIn px-5 pt-5 space-y-5 pb-10">
+      <div className="mb-4">
         <h2 className="font-extrabold text-2xl tracking-tight text-gray-900">Kelola Aplikasi</h2>
-        <p className="text-[13px] text-gray-500 font-medium mt-1">Data langsung sinkron ke halaman depan.</p>
+        <p className="text-[13px] text-gray-500 font-medium mt-1">Pilih kategori untuk mengedit data Beranda.</p>
       </div>
 
-      <div className="bg-white rounded-[1.25rem] border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-gray-900 p-4 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-white uppercase tracking-wider flex items-center gap-2"><i className="ph-fill ph-sparkle text-yellow-400"></i> Ayat Hari Ini</h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 mb-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Sedang Tampil:</p>
-            <p className="text-[13px] font-bold text-gray-900">{dailyVerse?.verse_reference || 'Belum diatur'}</p>
-            <p className="text-[12px] text-gray-700 line-clamp-2 mt-0.5 italic">"{dailyVerse?.verse_text || '-'}"</p>
-          </div>
-          <input value={dvRef} onChange={(e) => setDvRef(e.target.value)} type="text" placeholder="Referensi (Cth: Yohanes 3:16)" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-gray-900" />
-          <textarea value={dvText} onChange={(e) => setDvText(e.target.value)} placeholder="Teks firman..." rows={3} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-gray-900"></textarea>
-          <button onClick={saveDailyVerse} disabled={isLoading} className="w-full py-3 bg-gray-900 text-white font-bold text-[13px] rounded-xl active:scale-95 transition">Perbarui Ayat</button>
-        </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+        <button onClick={() => setAdminSection('daily')} className={`px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition shadow-sm ${adminSection === 'daily' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Ayat Harian</button>
+        <button onClick={() => setAdminSection('community')} className={`px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition shadow-sm ${adminSection === 'community' ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Komunitas</button>
+        <button onClick={() => setAdminSection('channel')} className={`px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition shadow-sm ${adminSection === 'channel' ? 'bg-purple-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Channel</button>
+        <button onClick={() => setAdminSection('news')} className={`px-4 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition shadow-sm ${adminSection === 'news' ? 'bg-orange-600 text-white' : 'bg-white text-gray-500 border border-gray-200'}`}>Berita</button>
       </div>
 
-      <div className="bg-white rounded-[1.25rem] border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-blue-50 p-4 border-b border-blue-100 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-blue-900 uppercase tracking-wider flex items-center gap-2"><i className="ph-fill ph-users-three"></i> Komunitas</h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{comId ? 'Mode Edit' : 'Tambah Baru'}</p>
-          <input value={comName} onChange={(e) => setComName(e.target.value)} type="text" placeholder="Nama Komunitas" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-blue-500" />
-          <div className="flex gap-2">
-            <input value={comMembers} onChange={(e) => setComMembers(e.target.value)} type="text" placeholder="Anggota (2.4k)" className="w-1/2 bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-blue-500" />
-            <input value={comCategory} onChange={(e) => setComCategory(e.target.value)} type="text" placeholder="Kategori (Doa/Diskusi)" className="w-1/2 bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-blue-500" />
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 min-h-[300px]">
+        {adminSection === 'daily' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Tampil Saat Ini:</p>
+              <p className="text-[13px] font-bold text-gray-900">{dailyVerse?.verse_reference || 'Belum diatur'}</p>
+              <p className="text-[13px] text-gray-700 mt-1 italic">"{dailyVerse?.verse_text || '-'}"</p>
+            </div>
+            <input value={dvRef} onChange={(e) => setDvRef(e.target.value)} type="text" placeholder="Referensi (Cth: Yohanes 3:16)" className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-gray-400 transition" />
+            <textarea value={dvText} onChange={(e) => setDvText(e.target.value)} placeholder="Teks firman..." rows={3} className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-gray-400 transition"></textarea>
+            <button onClick={saveDailyVerse} disabled={isLoading} className="w-full py-3.5 bg-gray-900 text-white font-bold text-[13px] rounded-xl active:scale-95 transition">Perbarui Ayat Hari Ini</button>
           </div>
-          <input value={comLink} onChange={(e) => setComLink(e.target.value)} type="url" placeholder="Link Telegram Grup" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-blue-500" />
-          <div className="flex gap-2 pt-1">
-            {comId && <button onClick={() => {setComId(null); setComName(''); setComMembers(''); setComCategory(''); setComLink('');}} className="w-1/3 py-3 bg-gray-100 text-gray-700 font-bold text-[13px] rounded-xl active:scale-95">Batal</button>}
-            <button onClick={saveCommunity} disabled={isLoading} className="flex-1 py-3 bg-blue-600 text-white font-bold text-[13px] rounded-xl active:scale-95 transition">{comId ? 'Simpan Edit' : 'Tambah'}</button>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-4 border-t border-gray-200">
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Daftar Tersimpan ({communities.length})</p>
-          <div className="space-y-3">
-            {communities.length > 0 ? communities.map((c: any) => (
-              <div key={c.id} className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
-                <h4 className="font-bold text-[13px] text-gray-900">{c.name}</h4>
-                <p className="text-[11px] text-gray-500 mb-3">{c.category} • {c.member_count}</p>
-                <div className="flex gap-2 border-t border-gray-100 pt-3">
-                  <button onClick={() => handleEditCom(c)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-[11px] font-bold transition hover:bg-blue-100"><i className="ph-bold ph-pencil-simple"></i> Edit</button>
-                  <button onClick={() => handleDeleteCom(c.id)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-red-50 text-red-600 rounded-lg text-[11px] font-bold transition hover:bg-red-100"><i className="ph-bold ph-trash"></i> Hapus</button>
+        )}
+
+        {adminSection !== 'daily' && (
+          <div className="animate-fadeIn flex flex-col h-full">
+            <button onClick={() => openModal()} className="w-full py-3 mb-4 bg-gray-900 text-white font-bold text-[13px] rounded-xl flex items-center justify-center gap-2 active:scale-95 transition">
+              <i className="ph-bold ph-plus"></i> Tambah Data Baru
+            </button>
+            <div className="space-y-3 flex-1">
+              {adminSection === 'community' && communities.map((c: any) => (
+                <div key={c.id} className="p-3 border border-gray-100 rounded-xl bg-[#fafafa] flex justify-between items-center group">
+                  <div>
+                    <h4 className="font-bold text-[13px] text-gray-900">{c.name}</h4>
+                    <p className="text-[11px] text-gray-500">{c.category} • {c.member_count}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openModal(c)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i className="ph-bold ph-pencil-simple"></i></button>
+                    <button onClick={() => handleDelete(c.id)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition"><i className="ph-bold ph-trash"></i></button>
+                  </div>
                 </div>
-              </div>
-            )) : <p className="text-xs text-gray-400 text-center italic py-2">Belum ada data.</p>}
+              ))}
+              {adminSection === 'channel' && channels.map((c: any) => (
+                <div key={c.id} className="p-3 border border-gray-100 rounded-xl bg-[#fafafa] flex justify-between items-center group">
+                  <div>
+                    <h4 className="font-bold text-[13px] text-gray-900">{c.name}</h4>
+                    <p className="text-[11px] text-gray-500 line-clamp-1">{c.category}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openModal(c)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i className="ph-bold ph-pencil-simple"></i></button>
+                    <button onClick={() => handleDelete(c.id)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition"><i className="ph-bold ph-trash"></i></button>
+                  </div>
+                </div>
+              ))}
+              {adminSection === 'news' && news.map((c: any) => (
+                <div key={c.id} className="p-3 border border-gray-100 rounded-xl bg-[#fafafa] flex justify-between items-center group">
+                  <div className="flex-1 pr-3">
+                    <h4 className="font-bold text-[13px] text-gray-900 line-clamp-1">{c.title}</h4>
+                    <p className="text-[11px] text-gray-500">{c.category}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => openModal(c)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-50 transition"><i className="ph-bold ph-pencil-simple"></i></button>
+                    <button onClick={() => handleDelete(c.id)} className="w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition"><i className="ph-bold ph-trash"></i></button>
+                  </div>
+                </div>
+              ))}
+              {((adminSection === 'community' && communities.length === 0) || (adminSection === 'channel' && channels.length === 0) || (adminSection === 'news' && news.length === 0)) && (
+                <p className="text-[12px] text-gray-400 text-center italic py-4">Data masih kosong.</p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-[1.25rem] border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-purple-50 p-4 border-b border-purple-100 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-purple-900 uppercase tracking-wider flex items-center gap-2"><i className="ph-fill ph-telegram-logo"></i> Channel Rekomendasi</h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{chId ? 'Mode Edit' : 'Tambah Baru'}</p>
-          <input value={chName} onChange={(e) => setChName(e.target.value)} type="text" placeholder="Nama Channel" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-purple-500" />
-          <input value={chDesc} onChange={(e) => setChDesc(e.target.value)} type="text" placeholder="Deskripsi Singkat" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-purple-500" />
-          <input value={chLink} onChange={(e) => setChLink(e.target.value)} type="url" placeholder="Link (YouTube / Telegram)" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-purple-500" />
-          <div className="flex gap-2 pt-1">
-            {chId && <button onClick={() => {setChId(null); setChName(''); setChDesc(''); setChLink('');}} className="w-1/3 py-3 bg-gray-100 text-gray-700 font-bold text-[13px] rounded-xl active:scale-95">Batal</button>}
-            <button onClick={saveChannel} disabled={isLoading} className="flex-1 py-3 bg-purple-600 text-white font-bold text-[13px] rounded-xl active:scale-95 transition">{chId ? 'Simpan Edit' : 'Tambah'}</button>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-4 border-t border-gray-200">
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Daftar Tersimpan ({channels.length})</p>
-          <div className="space-y-3">
-            {channels.length > 0 ? channels.map((ch: any) => (
-              <div key={ch.id} className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
-                <h4 className="font-bold text-[13px] text-gray-900">{ch.name}</h4>
-                <p className="text-[11px] text-gray-500 mb-3 line-clamp-1">{ch.category}</p>
-                <div className="flex gap-2 border-t border-gray-100 pt-3">
-                  <button onClick={() => handleEditCh(ch)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-[11px] font-bold transition hover:bg-blue-100"><i className="ph-bold ph-pencil-simple"></i> Edit</button>
-                  <button onClick={() => handleDeleteCh(ch.id)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-red-50 text-red-600 rounded-lg text-[11px] font-bold transition hover:bg-red-100"><i className="ph-bold ph-trash"></i> Hapus</button>
-                </div>
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-gray-900/60 p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white w-full max-w-[500px] max-h-[90vh] overflow-y-auto rounded-t-[1.5rem] sm:rounded-[1.5rem] p-6 shadow-2xl flex flex-col">
+            <div className="flex justify-between items-center mb-5 shrink-0">
+              <h3 className="font-extrabold text-lg text-gray-900">{editId ? 'Edit Data' : 'Tambah Data Baru'}</h3>
+              <button onClick={closeModal} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 transition hover:bg-gray-200">
+                <i className="ph-bold ph-x text-sm"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-3 mb-6 flex-1">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">{adminSection === 'news' ? 'Judul Artikel' : 'Nama'}</label>
+                <input value={formName} onChange={(e) => setFormName(e.target.value)} type="text" placeholder={adminSection === 'news' ? "Cth: Memahami Kasih Allah..." : "Cth: Komunitas Doa Pagi"} className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-[13px] focus:outline-none focus:border-gray-400 transition" />
               </div>
-            )) : <p className="text-xs text-gray-400 text-center italic py-2">Belum ada data.</p>}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[1.25rem] border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-orange-50 p-4 border-b border-orange-100 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-orange-900 uppercase tracking-wider flex items-center gap-2"><i className="ph-fill ph-newspaper"></i> Berita & Artikel</h3>
-        </div>
-        <div className="p-4 space-y-3">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{newsId ? 'Mode Edit' : 'Tambah Baru'}</p>
-          <input value={newsTitle} onChange={(e) => setNewsTitle(e.target.value)} type="text" placeholder="Judul Berita" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-orange-500" />
-          <input value={newsCategory} onChange={(e) => setNewsCategory(e.target.value)} type="text" placeholder="Kategori (ARTIKEL / BERITA)" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-orange-500" />
-          <input value={newsImage} onChange={(e) => setNewsImage(e.target.value)} type="url" placeholder="Link Gambar Cover" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-orange-500" />
-          <input value={newsLink} onChange={(e) => setNewsLink(e.target.value)} type="url" placeholder="Link Web Tujuan" className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[13px] focus:outline-none focus:border-orange-500" />
-          <div className="flex gap-2 pt-1">
-            {newsId && <button onClick={() => {setNewsId(null); setNewsTitle(''); setNewsCategory(''); setNewsLink(''); setNewsImage('');}} className="w-1/3 py-3 bg-gray-100 text-gray-700 font-bold text-[13px] rounded-xl active:scale-95">Batal</button>}
-            <button onClick={saveNews} disabled={isLoading} className="flex-1 py-3 bg-orange-600 text-white font-bold text-[13px] rounded-xl active:scale-95 transition">{newsId ? 'Simpan Edit' : 'Tambah'}</button>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-4 border-t border-gray-200">
-          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Daftar Tersimpan ({news.length})</p>
-          <div className="space-y-3">
-            {news.length > 0 ? news.map((n: any) => (
-              <div key={n.id} className="bg-white border border-gray-200 p-3 rounded-xl shadow-sm">
-                <h4 className="font-bold text-[13px] text-gray-900 line-clamp-1">{n.title}</h4>
-                <p className="text-[11px] text-gray-500 mb-3">{n.category}</p>
-                <div className="flex gap-2 border-t border-gray-100 pt-3">
-                  <button onClick={() => handleEditNews(n)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-[11px] font-bold transition hover:bg-blue-100"><i className="ph-bold ph-pencil-simple"></i> Edit</button>
-                  <button onClick={() => handleDeleteNews(n.id)} className="flex-1 flex justify-center items-center gap-1 py-2 bg-red-50 text-red-600 rounded-lg text-[11px] font-bold transition hover:bg-red-100"><i className="ph-bold ph-trash"></i> Hapus</button>
-                </div>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Kategori / Deskripsi</label>
+                <input value={formDesc} onChange={(e) => setFormDesc(e.target.value)} type="text" placeholder={adminSection === 'news' ? "Cth: ARTIKEL" : "Cth: Doa Bersama"} className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-[13px] focus:outline-none focus:border-gray-400 transition" />
               </div>
-            )) : <p className="text-xs text-gray-400 text-center italic py-2">Belum ada data.</p>}
+              
+              {adminSection === 'news' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Link Cover Gambar</label>
+                  <input value={formImage} onChange={(e) => setFormImage(e.target.value)} type="url" placeholder="Cth: https://.../image.jpg" className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-[13px] focus:outline-none focus:border-gray-400 transition" />
+                </div>
+              )}
+              
+              {adminSection === 'community' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Jumlah Member</label>
+                  <input value={formImage} onChange={(e) => setFormImage(e.target.value)} type="text" placeholder="Cth: 2.4k" className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-[13px] focus:outline-none focus:border-gray-400 transition" />
+                </div>
+              )}
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Link Tujuan (Sumber)</label>
+                <input value={formLink} onChange={(e) => setFormLink(e.target.value)} type="url" placeholder="Cth: https://t.me/..." className="w-full bg-[#fafafa] border border-gray-200 rounded-xl px-4 py-3.5 text-[13px] focus:outline-none focus:border-gray-400 transition" />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 shrink-0">
+              <button onClick={closeModal} className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-[13px] hover:bg-gray-200 transition">Batal</button>
+              <button onClick={handleSave} disabled={isLoading} className="flex-1 py-3.5 bg-gray-900 text-white rounded-xl font-bold text-[13px] hover:bg-gray-800 transition">Simpan Data</button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,28 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const API_URL = 'https://main.bibleonbot-webapp.pages.dev/api';
+const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
 
-export default function SavedTab({ userId }: any) {
-  const [savedVerses, setSavedVerses] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchSaved = async () => {
-    if (!userId) return setIsLoading(false);
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/saved-verses?userId=${userId}`);
-      if (res.ok) {
-        setSavedVerses(await res.json());
-      }
-    } catch (e) {
-      console.error('Fetch Saved Error:', e);
-    }
-    setIsLoading(false);
+export default function SavedTab({ savedVerses, fetchSaved }: any) {
+  const [viewMode, setViewMode] = useState<'notes' | 'highlights'>('notes');
+  
+  const COLOR_BORDER_MAP: any = {
+    'yellow': 'bg-yellow-400',
+    'green': 'bg-green-400',
+    'blue': 'bg-blue-400',
+    'pink': 'bg-pink-400',
+    'purple': 'bg-purple-400',
+    '': 'bg-gray-200'
   };
 
-  useEffect(() => {
-    fetchSaved();
-  }, [userId]);
+  const COLOR_TEXT_MAP: any = {
+    'yellow': 'bg-[#fef08a]/50 text-yellow-900 rounded-md px-1',
+    'green': 'bg-[#bbf7d0]/50 text-green-900 rounded-md px-1',
+    'blue': 'bg-[#bfdbfe]/50 text-blue-900 rounded-md px-1',
+    'pink': 'bg-[#fbcfe8]/50 text-pink-900 rounded-md px-1',
+    'purple': 'bg-[#e9d5ff]/50 text-purple-900 rounded-md px-1',
+    '': 'text-gray-800'
+  };
 
   const removeSavedVerse = async (id: number) => {
     if (!confirm('Hapus ayat ini dari daftar tersimpan?')) return;
@@ -30,65 +29,68 @@ export default function SavedTab({ userId }: any) {
       await fetch(`${API_URL}/saved-verses?id=${id}`, { method: 'DELETE' });
       fetchSaved(); 
     } catch (e) {
-      console.error('Delete Saved Error:', e);
+      console.error(e);
     }
   };
 
+  const versesWithNotes = savedVerses.filter((v: any) => v.note && v.note.trim() !== '').sort((a: any, b: any) => b.id - a.id);
+  const versesWithHighlights = savedVerses.filter((v: any) => (!v.note || v.note.trim() === '') && v.color).sort((a: any, b: any) => b.id - a.id);
+
+  const displayedVerses = viewMode === 'notes' ? versesWithNotes : versesWithHighlights;
+
   return (
     <div className="animate-fadeIn px-5 pt-5 space-y-6 pb-10">
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <h2 className="font-extrabold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
-          <p className="text-[13px] text-gray-500 font-medium mt-1">Koleksi ayat dan catatan Anda.</p>
-        </div>
-        <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-900 font-bold text-sm shadow-sm">
-          {savedVerses.length}
-        </div>
+      <div className="mb-6">
+        <h2 className="font-extrabold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
+        <p className="text-[13px] text-gray-500 font-medium mt-1">Riwayat koleksi Anda.</p>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-10">
-          <i className="ph-bold ph-spinner animate-spin text-3xl text-gray-400"></i>
-        </div>
-      ) : savedVerses.length > 0 ? (
+      <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl mb-4">
+        <button onClick={() => setViewMode('notes')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition ${viewMode === 'notes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Dengan Catatan ({versesWithNotes.length})</button>
+        <button onClick={() => setViewMode('highlights')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition ${viewMode === 'highlights' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Sorotan Warna ({versesWithHighlights.length})</button>
+      </div>
+
+      {displayedVerses.length > 0 ? (
         <div className="space-y-4">
-          {savedVerses.map((v) => (
-            <div key={v.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative group overflow-hidden">
-              
-              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${v.color === 'Kuning' ? 'bg-yellow-400' : 'bg-gray-200'}`}></div>
+          {displayedVerses.map((v: any) => (
+            <div key={v.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative group">
+              <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${COLOR_BORDER_MAP[v.color] || COLOR_BORDER_MAP['']}`}></div>
               
               <div className="flex justify-between items-start mb-3 pl-2">
-                <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-900 bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
-                  {v.book} {v.chapter}:{v.verse}
-                </span>
-                <button onClick={() => removeSavedVerse(v.id)} className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition">
-                  <i className="ph-bold ph-trash text-sm"></i>
+                <div className="flex items-center gap-2">
+                  <span className="bg-gray-50 border border-gray-200 text-gray-800 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest">{v.book} {v.chapter}:{v.verse}</span>
+                </div>
+                <button onClick={() => removeSavedVerse(v.id)} className="text-gray-300 hover:text-red-500 transition">
+                  <i className="ph-bold ph-trash text-base"></i>
                 </button>
               </div>
               
-              <p className="text-[14px] text-gray-800 font-medium leading-relaxed pl-2 mb-3">
-                <span className={v.color === 'Kuning' ? 'bg-yellow-100 px-1 rounded' : ''}>{v.content}</span>
+              <p className={`text-[14px] leading-relaxed pl-2 mb-4 font-medium ${COLOR_TEXT_MAP[v.color] || COLOR_TEXT_MAP['']}`}>
+                {v.content}
               </p>
               
               {v.note && (
-                <div className="ml-2 bg-yellow-50 p-3.5 rounded-xl border border-yellow-100">
-                  <div className="flex items-center gap-1.5 mb-2 text-yellow-700">
-                    <i className="ph-bold ph-pencil-simple text-sm"></i>
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Catatan Renungan</span>
+                <div className="ml-2 bg-[#fafafa] rounded-xl p-4 border border-gray-100 relative">
+                  <div className="absolute -left-[1px] top-4 bottom-4 w-1 bg-gray-300 rounded-full"></div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <i className="ph-fill ph-quotes text-gray-400 text-[12px]"></i>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500">Catatan Anda</span>
                   </div>
-                  <p className="text-xs text-yellow-900 font-medium leading-relaxed">{v.note}</p>
+                  <p className="text-[13px] text-gray-700 leading-relaxed font-medium italic">{v.note}</p>
                 </div>
               )}
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center pt-20 pb-10 text-center opacity-80">
+        <div className="flex flex-col items-center justify-center pt-16 pb-10 text-center opacity-80">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
             <i className="ph-fill ph-bookmark-simple text-3xl"></i>
           </div>
-          <h4 className="font-bold text-gray-900 mb-1">Belum ada ayat</h4>
-          <p className="text-xs text-gray-500 max-w-[200px]">Simpan ayat, tambahkan sorotan warna, dan buat catatan renungan Anda.</p>
+          <h4 className="font-bold text-gray-900 mb-1">Belum ada data</h4>
+          <p className="text-xs text-gray-500 max-w-[220px]">
+            {viewMode === 'notes' ? 'Anda belum memiliki ayat dengan catatan renungan.' : 'Anda belum memberikan sorotan warna pada ayat mana pun.'}
+          </p>
         </div>
       )}
     </div>
