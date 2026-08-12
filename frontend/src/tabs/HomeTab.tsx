@@ -1,15 +1,39 @@
 import { useState } from 'react';
 
-export default function HomeTab({ dailyVerse, communities, channels, news }: any) {
-  // Sistem Pintar "Load More"
+export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab }: any) {
   const [visibleComms, setVisibleComms] = useState(5);
   const [visibleNews, setVisibleNews] = useState(5);
 
+  const hour = new Date().getHours();
+  let greeting = 'Selamat pagi,';
+  if (hour >= 11 && hour < 15) greeting = 'Selamat siang,';
+  else if (hour >= 15 && hour < 18) greeting = 'Selamat sore,';
+  else if (hour >= 18 || hour < 4) greeting = 'Selamat malam,';
+
   return (
-    <div className="animate-fadeIn px-5 pt-5 space-y-8">
+    <div className="animate-fadeIn px-5 pt-3 space-y-8">
       
-      {/* Card Ayat Hari Ini */}
-      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-[1.5rem] p-6 overflow-hidden shadow-lg">
+      <div className="flex justify-between items-start px-1 mb-2">
+          <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                  <img src="https://i.ibb.co/0VytPmL7/31399-removebg-preview.png" alt="Logo" className="w-5 h-5 object-contain opacity-80" />
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">ALKITAB ID</span>
+              </div>
+              <h1 className="text-[26px] font-bold tracking-tight text-gray-900 leading-tight">
+                  <span id="greeting-time">{greeting}</span><br/>
+                  <span className="text-gray-400 font-medium text-[22px]">{userName}</span>
+              </h1>
+          </div>
+          <div className="flex gap-2">
+              {isAdmin && (
+                <button onClick={() => setActiveTab('admin')} className="w-10 h-10 bg-gray-900 text-white rounded-full flex items-center justify-center shadow-sm relative active:scale-95 shrink-0 transition">
+                    <i className="ph-bold ph-shield-star"></i>
+                </button>
+              )}
+          </div>
+      </div>
+
+      <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded-[1.5rem] p-6 overflow-hidden shadow-lg mt-4">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl"></div>
         <div className="absolute right-10 bottom-0 w-24 h-24 bg-white opacity-5 rounded-full blur-xl"></div>
         <div className="relative z-10">
@@ -26,7 +50,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
         </div>
       </div>
 
-      {/* Komunitas Section (Sesuai Desain HTML Anda) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-bold text-lg tracking-tight">Komunitas</h3>
@@ -35,7 +58,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
         
         <div className="grid grid-cols-1 gap-3">
           {communities.slice(0, visibleComms).map((c: any, i: number) => {
-            // Logika mendeteksi ikon berdasarkan kategori (Doa vs Diskusi)
             const isPrayer = c.category.toLowerCase().includes('doa');
             return (
               <div key={i} className="flex items-center justify-between p-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-gray-200 transition">
@@ -55,7 +77,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
           {communities.length === 0 && <p className="text-xs text-gray-500 text-center py-2">Belum ada komunitas.</p>}
         </div>
 
-        {/* Tombol Load More Komunitas */}
         {communities.length > visibleComms && (
           <button onClick={() => setVisibleComms(prev => prev + 5)} className="w-full py-2.5 text-[11px] font-bold uppercase tracking-wide text-gray-500 hover:text-gray-900 transition flex justify-center items-center gap-1">
             <span>Tampilkan lainnya</span>
@@ -64,12 +85,10 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
         )}
       </div>
 
-      {/* Rekomendasi Channel (Desain Pisah Telegram & YouTube) */}
       <div className="space-y-3">
         <h3 className="font-bold text-lg tracking-tight px-1">Rekomendasi Channel</h3>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
           {channels.map((ch: any, i: number) => {
-            // Deteksi link Youtube vs Telegram
             const isYouTube = ch.link.toLowerCase().includes('youtube.com') || ch.link.toLowerCase().includes('youtu.be');
 
             if (isYouTube) {
@@ -87,7 +106,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
               );
             }
 
-            // Default ke Tema Telegram
             return (
               <div key={i} className="flex-none w-[180px] p-3.5 bg-gradient-to-br from-[#2AABEE]/10 to-[#229ED9]/5 rounded-2xl border border-[#2AABEE]/20 relative">
                 <div className="flex items-center gap-2 mb-3">
@@ -106,7 +124,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
         </div>
       </div>
 
-      {/* Berita & Artikel Section */}
       <div className="pb-4 space-y-4">
         <div className="flex items-center justify-between px-1">
           <h3 className="font-bold text-lg tracking-tight">Berita & Artikel</h3>
@@ -134,7 +151,6 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
           {news.length === 0 && <p className="text-xs text-gray-500 text-center py-2">Belum ada berita.</p>}
         </div>
 
-        {/* Tombol Load More Berita */}
         {news.length > visibleNews && (
           <button onClick={() => setVisibleNews(prev => prev + 5)} className="w-full py-3 text-[11px] font-bold uppercase tracking-wide text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition flex justify-center items-center gap-1.5 shadow-sm">
             <span>Tampilkan Berita Lainnya</span>
@@ -142,6 +158,29 @@ export default function HomeTab({ dailyVerse, communities, channels, news }: any
           </button>
         )}
       </div>
+
+      {/* Banner Donasi (Saweria) */}
+      <div className="relative bg-gradient-to-br from-[#1a1d23] to-[#2d313a] rounded-3xl p-7 overflow-hidden shadow-2xl mx-1 my-4 mb-6 group">
+          <div className="absolute -right-10 -top-10 w-48 h-48 bg-yellow-500 opacity-10 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-20"></div>
+          <div className="absolute left-0 bottom-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+          
+          <div className="relative z-10 flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.3)] mb-4 transform group-hover:scale-105 transition-transform duration-300">
+                  <i className="ph-fill ph-hand-heart text-white text-3xl drop-shadow-md"></i>
+              </div>
+              
+              <h3 className="text-white font-bold text-[18px] leading-tight mb-2 tracking-tight">Jadilah Saluran Berkat</h3>
+              <p className="text-gray-300 text-[12px] leading-relaxed mb-6 font-medium px-4">
+                  Dukungan Anda membantu Alkitab ID terus berkembang dan tetap bebas iklan mengganggu.
+              </p>
+              
+              <a href="https://saweria.co/bibleonbot" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-7 py-3 rounded-full text-[11px] font-extrabold uppercase tracking-widest transition-all backdrop-blur-md flex items-center gap-2 active:scale-95">
+                  <span>Donasi via Saweria</span>
+                  <i className="ph-bold ph-arrow-up-right text-yellow-400 text-sm"></i>
+              </a>
+          </div>
+      </div>
+
     </div>
   );
 }

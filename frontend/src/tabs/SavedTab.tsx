@@ -4,6 +4,7 @@ const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
 
 export default function SavedTab({ savedVerses, fetchSaved }: any) {
   const [viewMode, setViewMode] = useState<'notes' | 'highlights'>('notes');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   
   const COLOR_BORDER_MAP: any = {
     'yellow': 'bg-yellow-400',
@@ -25,12 +26,16 @@ export default function SavedTab({ savedVerses, fetchSaved }: any) {
 
   const removeSavedVerse = async (id: number) => {
     if (!confirm('Hapus ayat ini dari daftar tersimpan?')) return;
-    try {
-      await fetch(`${API_URL}/saved-verses?id=${id}`, { method: 'DELETE' });
-      fetchSaved(); 
-    } catch (e) {
-      console.error(e);
-    }
+    setDeletingId(id);
+    setTimeout(async () => {
+      try {
+        await fetch(`${API_URL}/saved-verses?id=${id}`, { method: 'DELETE' });
+        fetchSaved(); 
+      } catch (e) {
+        console.error(e);
+      }
+      setDeletingId(null);
+    }, 300);
   };
 
   const versesWithNotes = savedVerses.filter((v: any) => v.note && v.note.trim() !== '').sort((a: any, b: any) => b.id - a.id);
@@ -40,20 +45,23 @@ export default function SavedTab({ savedVerses, fetchSaved }: any) {
 
   return (
     <div className="animate-fadeIn px-5 pt-5 space-y-6 pb-10">
-      <div className="mb-6">
+      <div className="mb-4">
         <h2 className="font-extrabold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
-        <p className="text-[13px] text-gray-500 font-medium mt-1">Riwayat koleksi Anda.</p>
+        <p className="text-[13px] text-gray-500 font-medium mt-1">Riwayat koleksi Anda berdasarkan terbaru.</p>
       </div>
 
       <div className="flex gap-2 bg-gray-100 p-1.5 rounded-2xl mb-4">
-        <button onClick={() => setViewMode('notes')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition ${viewMode === 'notes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Dengan Catatan ({versesWithNotes.length})</button>
-        <button onClick={() => setViewMode('highlights')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition ${viewMode === 'highlights' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Sorotan Warna ({versesWithHighlights.length})</button>
+        <button onClick={() => setViewMode('notes')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition duration-300 ${viewMode === 'notes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Dengan Catatan ({versesWithNotes.length})</button>
+        <button onClick={() => setViewMode('highlights')} className={`flex-1 py-2.5 rounded-xl text-[12px] font-bold transition duration-300 ${viewMode === 'highlights' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Sorotan Warna ({versesWithHighlights.length})</button>
       </div>
 
       {displayedVerses.length > 0 ? (
         <div className="space-y-4">
           {displayedVerses.map((v: any) => (
-            <div key={v.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative group">
+            <div 
+              key={v.id} 
+              className={`bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative group transition-all duration-300 ${deletingId === v.id ? 'opacity-0 scale-95 translate-x-5' : 'opacity-100 scale-100 translate-x-0'}`}
+            >
               <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${COLOR_BORDER_MAP[v.color] || COLOR_BORDER_MAP['']}`}></div>
               
               <div className="flex justify-between items-start mb-3 pl-2">
@@ -83,7 +91,7 @@ export default function SavedTab({ savedVerses, fetchSaved }: any) {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center pt-16 pb-10 text-center opacity-80">
+        <div className="flex flex-col items-center justify-center pt-16 pb-10 text-center opacity-80 animate-fadeIn">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
             <i className="ph-fill ph-bookmark-simple text-3xl"></i>
           </div>

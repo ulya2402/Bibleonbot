@@ -52,9 +52,10 @@ export default function App() {
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [showToast, setShowToast] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(true);
   
+  const [isAdmin, setIsAdmin] = useState(true);
   const [userId, setUserId] = useState<string>(ADMIN_ID.toString());
+  const [userName, setUserName] = useState<string>('Saudara');
   
   const [dailyVerse, setDailyVerse] = useState<any>(null);
   const [communities, setCommunities] = useState<any[]>([]);
@@ -111,7 +112,17 @@ export default function App() {
       if (tg) { 
         tg.ready(); 
         tg.expand(); 
+        
+        try { tg.requestFullscreen(); } catch (e) {}
+        try { 
+          tg.setHeaderColor('#fafafa'); 
+          tg.setBackgroundColor('#fafafa'); 
+        } catch (e) {}
+        
         const currentUserId = tg.initDataUnsafe?.user?.id?.toString();
+        const firstName = tg.initDataUnsafe?.user?.first_name;
+        
+        if (firstName) setUserName(firstName);
         if (currentUserId) {
            setUserId(currentUserId);
            setIsAdmin(Number(currentUserId) === ADMIN_ID);
@@ -187,7 +198,7 @@ export default function App() {
     if (selectedVerses.length === 1) {
       const v = bibleVerses.find(bv => bv.id === selectedVerses[0]);
       if (v) {
-        const match = savedVerses.find(sv => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === v.verse);
+        const match = savedVerses.find(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
         if (match && match.note) existingNote = match.note;
       }
     }
@@ -199,39 +210,53 @@ export default function App() {
     const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
     if (selectedVerseData.length === 0) return;
 
+    // OPTIMISTIC UI UPDATE: Langsung update state lokal agar catatan & warna muncul instan tanpa lag
+    const newSavedVerses = [...savedVerses];
+
     try {
       for (const v of selectedVerseData) {
-        const existing = savedVerses.find(sv => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === v.verse);
+        const existingIndex = newSavedVerses.findIndex(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
+        const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
+        
         const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
         const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
 
-        const res = await fetch(`${API_URL}/saved-verses`, {
+        const payload = {
+          id: existing?.id, // Kirim ID jika sudah ada agar backend bisa Update
+          user_id: userId,
+          book: currentBook.name,
+          chapter: currentChapter,
+          verse: v.verse,
+          content: v.content,
+          color: finalColor,
+          note: finalNote
+        };
+
+        // Langsung tampilkan di UI lokal
+        if (existingIndex >= 0) {
+          newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
+        } else {
+          newSavedVerses.push({ ...payload, id: Date.now() + Math.random() });
+        }
+
+        // Tembak ke API di belakang layar
+        await fetch(`${API_URL}/saved-verses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: userId,
-            book: currentBook.name,
-            chapter: currentChapter,
-            verse: v.verse,
-            content: v.content,
-            color: finalColor,
-            note: finalNote
-          })
+          body: JSON.stringify(payload)
         });
-        
-        if (!res.ok) {
-           const errorData = await res.json().catch(() => ({error: 'API Error'}));
-           triggerAction("Gagal menyimpan: " + errorData.error);
-           return; 
-        }
       }
       
-      await fetchSavedData();
+      setSavedVerses(newSavedVerses); // Terapkan pembaruan lokal
       triggerAction(noteParam !== null ? 'Catatan tersimpan!' : 'Warna berhasil diterapkan!');
+      
       setIsNoteModalOpen(false);
       setIsColorPaletteOpen(false);
       setNoteInput('');
       setSelectedVerses([]);
+      
+      // Sinkronisasi ulang secara diam-diam
+      fetchSavedData(); 
     } catch (e: any) {
       triggerAction("Gagal menyambung ke server.");
     }
@@ -252,22 +277,19 @@ export default function App() {
   return (
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
       
-      <header className="flex-none px-5 pt-6 pb-4 bg-white z-40 border-b border-gray-100 flex justify-between items-center shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+      {/* Header dengan Safe Area Top agar tidak tertutup tombol UI Telegram */}
+      <header 
+        className="flex-none px-5 pb-4 bg-white z-40 border-b border-gray-100 flex justify-between items-end shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]"
+        style={{ paddingTop: 'max(1.5rem, var(--tg-safe-area-inset-top, 2.5rem))' }}
+      >
         <div className="flex items-center gap-3">
           <img src="https://i.ibb.co/0VytPmL7/31399-removebg-preview.png" alt="Logo" className="w-8 h-8 object-contain" />
           <h1 className="font-extrabold text-lg tracking-tight text-gray-900">Alkitab ID</h1>
         </div>
-        <div className="flex gap-2">
-          {isAdmin && (
-            <button onClick={() => { setActiveTab('admin'); setSelectedVerses([]); }} className={`p-2 rounded-full transition ${activeTab === 'admin' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
-              <i className="ph-bold ph-shield-star text-lg"></i>
-            </button>
-          )}
-        </div>
       </header>
 
       <main className="flex-1 scroll-area no-scrollbar relative pb-32">
-        {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} />}
+        {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} userName={userName} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
         {activeTab === 'bible' && (
           <BibleTab 
             currentBook={currentBook} currentChapter={currentChapter} currentVersion={currentVersion}
@@ -281,10 +303,11 @@ export default function App() {
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
         
         {activeTab === 'admin' && (
-          <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} />
+          <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />
         )}
       </main>
 
+      {/* POPUP PILIH KITAB */}
       {isSelectorOpen && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end">
           <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
@@ -350,6 +373,7 @@ export default function App() {
         </div>
       )}
 
+      {/* POPUP TULIS CATATAN */}
       {isNoteModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-gray-900/60 p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
           <div className="bg-white w-full max-w-[500px] max-h-[90vh] overflow-y-auto rounded-t-[1.5rem] sm:rounded-[1.5rem] p-6 shadow-2xl note-modal-box">
@@ -373,6 +397,7 @@ export default function App() {
         </div>
       )}
 
+      {/* POPUP BACA CATATAN DI TAB ALKITAB */}
       {viewingNote && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-900/60 p-5 animate-[fadeIn_0.2s_ease-out] note-modal-box">
           <div className="bg-white w-full max-w-[400px] rounded-[1.5rem] p-6 shadow-2xl relative">
@@ -455,7 +480,11 @@ export default function App() {
         </button>
       </nav>
 
-      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'top-6 opacity-100 scale-100' : '-top-10 opacity-0 scale-95'}`}>
+      {/* Toast Notifikasi dengan Batas Aman di Atas */}
+      <div 
+        className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
+        style={{ top: showToast ? 'max(1.5rem, var(--tg-safe-area-inset-top, 2.5rem))' : '-100px' }}
+      >
         <i className="ph-fill ph-check-circle text-green-400 text-lg"></i>
         <span>{toastMsg}</span>
       </div>

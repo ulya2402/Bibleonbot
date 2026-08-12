@@ -70,9 +70,9 @@ export default function BibleTab({
             </div>
           ) : bibleVerses.length > 0 ? (
             bibleVerses.map((verseData: any) => {
-              const savedMatch = savedVerses.find((sv: any) => sv.book === currentBook.name && sv.chapter === currentChapter && sv.verse === verseData.verse);
+              const savedMatch = savedVerses.find((sv: any) => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(verseData.verse));
               const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
-              const hasNote = savedMatch && savedMatch.note;
+              const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
 
               return (
                 <div 
@@ -83,7 +83,7 @@ export default function BibleTab({
                   onTouchMove={handleTouchEnd}
                   className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${selectedVerses.includes(verseData.id) ? 'bg-[#eceef2] scale-[0.98]' : 'bg-transparent hover:bg-white'}`}
                 >
-                  <div className="flex flex-col items-center gap-1.5 shrink-0 w-6 pt-[3px]">
+                  <div className="flex flex-col items-center gap-1.5 shrink-0 w-7 pt-[3px]">
                     <span className={`text-[12px] font-extrabold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
                       {verseData.verse}
                     </span>
@@ -93,9 +93,9 @@ export default function BibleTab({
                           e.stopPropagation(); 
                           setViewingNote({ book: currentBook.name, chapter: currentChapter, verse: verseData.verse, content: verseData.content, note: savedMatch.note }); 
                         }}
-                        className="w-6 h-6 flex items-center justify-center bg-gray-900 text-white rounded-full hover:bg-gray-700 transition shadow-sm"
+                        className="w-6 h-6 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full hover:bg-yellow-200 transition shadow-sm border border-yellow-200"
                       >
-                        <i className="ph-fill ph-notebook text-[11px]"></i>
+                        <i className="ph-fill ph-notebook text-[12px]"></i>
                       </button>
                     )}
                   </div>
