@@ -1,10 +1,14 @@
+import { useState } from 'react';
+
 export default function BibleTab({ 
-  currentBook, currentChapter, currentVersion,
+  currentBook, currentChapter,
   setSelectorStep, setIsSelectorOpen,
   isLoadingBible, bibleVerses, savedVerses,
   selectedVerses, handleVerseSelect, handleTouchStart, handleTouchEnd,
   setViewingNote
 }: any) {
+
+  const [verseSearch, setVerseSearch] = useState('');
 
   const COLOR_MAP: any = {
     'yellow': 'bg-[#fef08a]/60 text-yellow-900 rounded-md px-1',
@@ -28,33 +32,31 @@ export default function BibleTab({
     });
   };
 
+  const filteredVerses = bibleVerses.filter((v: any) => v.content.toLowerCase().includes(verseSearch.toLowerCase()) || String(v.verse) === verseSearch);
+
   return (
-    <div className="animate-fadeIn h-full flex flex-col">
-      <div className="flex-none sticky top-0 z-30 bg-[#fafafa]/95 backdrop-blur-md px-5 py-3 border-b border-gray-200 flex gap-2 overflow-x-auto shadow-sm no-scrollbar">
+    <div className="animate-fadeIn h-full flex flex-col pt-2">
+      <div className="flex-none px-5 pb-4 flex justify-between items-center gap-2">
         <button 
           onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-          className="flex items-center gap-2 px-5 py-2 bg-[#1a1d23] text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95"
+          className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95"
         >
           <span>{currentBook.name} {currentChapter}</span>
           <i className="ph-bold ph-caret-down text-gray-400"></i>
         </button>
-        <button 
-          onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-          className="flex items-center gap-2 px-5 py-2 bg-white text-gray-800 border border-gray-200 rounded-full shadow-sm text-[13px] font-bold transition active:scale-95"
-        >
-          <span>{currentVersion.id}</span>
-          <i className="ph-bold ph-caret-down text-gray-400"></i>
-        </button>
+        <div className="relative flex-1">
+          <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+          <input 
+            type="text" 
+            placeholder="Cari ayat..." 
+            value={verseSearch}
+            onChange={(e) => setVerseSearch(e.target.value)}
+            className="w-full bg-white border border-gray-200 rounded-full py-2.5 pl-9 pr-4 text-[13px] font-medium text-gray-800 focus:outline-none focus:border-gray-400 transition shadow-sm" 
+          />
+        </div>
       </div>
 
-      <div className="flex-1 px-5 pt-4 pb-10">
-        <div className="relative mb-5 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <i className="ph-bold ph-magnifying-glass text-gray-400 text-lg"></i>
-          </div>
-          <input type="text" placeholder={`Cari di ${currentBook.name} ${currentChapter}...`} className="w-full bg-white border border-gray-200 rounded-2xl py-3.5 pl-12 pr-4 text-[14px] font-medium text-gray-800 focus:outline-none focus:border-gray-400 transition shadow-sm" />
-        </div>
-
+      <div className="flex-1 px-5 pb-10">
         <div className="space-y-1">
           {isLoadingBible ? (
             <div className="animate-pulse space-y-5 py-2 mt-4">
@@ -68,8 +70,8 @@ export default function BibleTab({
                 </div>
               ))}
             </div>
-          ) : bibleVerses.length > 0 ? (
-            bibleVerses.map((verseData: any) => {
+          ) : filteredVerses.length > 0 ? (
+            filteredVerses.map((verseData: any) => {
               const savedMatch = savedVerses.find((sv: any) => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(verseData.verse));
               const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
               const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
@@ -108,7 +110,7 @@ export default function BibleTab({
           ) : (
             <div className="text-center py-10">
               <i className="ph-duotone ph-warning-circle text-4xl text-gray-300 mb-3"></i>
-              <p className="text-sm font-medium text-gray-500">Ayat tidak ditemukan di Database.</p>
+              <p className="text-sm font-medium text-gray-500">Ayat tidak ditemukan.</p>
             </div>
           )}
         </div>

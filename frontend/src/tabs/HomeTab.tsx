@@ -10,8 +10,16 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
   else if (hour >= 15 && hour < 18) greeting = 'Selamat sore,';
   else if (hour >= 18 || hour < 4) greeting = 'Selamat malam,';
 
+  const getDomainName = (url: string) => {
+    try {
+      return new URL(url).hostname.replace('www.', '');
+    } catch (e) {
+      return 'Artikel';
+    }
+  };
+
   return (
-    <div className="animate-fadeIn px-5 pt-3 space-y-8">
+    <div className="animate-fadeIn px-5 space-y-8 pt-4">
       
       <div className="flex justify-between items-start px-1 mb-2">
           <div className="flex-1">
@@ -21,7 +29,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               </div>
               <h1 className="text-[26px] font-bold tracking-tight text-gray-900 leading-tight">
                   <span id="greeting-time">{greeting}</span><br/>
-                  <span className="text-gray-400 font-medium text-[22px]">{userName}</span>
+                  <span className="text-gray-400 font-medium text-[22px]">Saudara {userName}</span>
               </h1>
           </div>
           <div className="flex gap-2">
@@ -139,10 +147,12 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               <div key={i} onClick={() => window.open(n.link, '_blank')} className="flex gap-4 items-center bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-gray-300 transition group">
                 <img src={n.image_url} alt="Cover" className="w-20 h-20 rounded-xl object-cover" />
                 <div className="flex-1 py-1 pr-2">
-                  <span className={`text-[9px] font-extrabold uppercase tracking-widest mb-1.5 block ${isArticle ? 'text-blue-600' : 'text-orange-600'}`}>{n.category}</span>
+                  <span className={`text-[9px] font-extrabold uppercase tracking-widest mb-1 block ${isArticle ? 'text-blue-600' : 'text-orange-600'}`}>{n.category}</span>
                   <h4 className="font-bold text-[13px] leading-tight text-gray-900 line-clamp-2 mb-1.5 group-hover:text-blue-600 transition">{n.title}</h4>
-                  <div className="flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                    <i className="ph-fill ph-clock"></i> Baru saja
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
+                    <div className="flex items-center gap-1"><i className="ph-fill ph-clock"></i> Baru saja</div>
+                    <span>•</span>
+                    <div className="flex items-center gap-1 text-gray-500"><i className="ph-fill ph-globe"></i> {getDomainName(n.link)}</div>
                   </div>
                 </div>
               </div>
@@ -159,8 +169,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         )}
       </div>
 
-      {/* Banner Donasi (Saweria) */}
-      <div className="relative bg-gradient-to-br from-[#1a1d23] to-[#2d313a] rounded-3xl p-7 overflow-hidden shadow-2xl mx-1 my-4 mb-6 group">
+      <div className="relative bg-gradient-to-br from-[#1a1d23] to-[#2d313a] rounded-[1.5rem] p-7 overflow-hidden shadow-2xl mx-1 my-4 mb-6 group">
           <div className="absolute -right-10 -top-10 w-48 h-48 bg-yellow-500 opacity-10 rounded-full blur-3xl transition-opacity duration-500 group-hover:opacity-20"></div>
           <div className="absolute left-0 bottom-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
           

@@ -44,7 +44,7 @@ export default function SavedTab({ savedVerses, fetchSaved }: any) {
   const displayedVerses = viewMode === 'notes' ? versesWithNotes : versesWithHighlights;
 
   return (
-    <div className="animate-fadeIn px-5 pt-5 space-y-6 pb-10">
+    <div className="animate-fadeIn px-5 pt-4 pb-10">
       <div className="mb-4">
         <h2 className="font-extrabold text-2xl tracking-tight text-gray-900">Tersimpan</h2>
         <p className="text-[13px] text-gray-500 font-medium mt-1">Riwayat koleksi Anda berdasarkan terbaru.</p>

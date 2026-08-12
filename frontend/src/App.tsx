@@ -5,17 +5,17 @@ import SavedTab from './tabs/SavedTab';
 import AdminTab from './tabs/AdminTab';
 
 const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
-
 const ADMIN_ID = 8189771306;
 
+// PERBAIKAN FATAL: Menyamakan singkatan (id) dengan tb.csv agar ayat 100% muncul
 const BIBLE_BOOKS = [
   { id: 'Kej', name: 'Kejadian', chapters: 50, test: 'PL' }, { id: 'Kel', name: 'Keluaran', chapters: 40, test: 'PL' },
-  { id: 'Im', name: 'Imamat', chapters: 27, test: 'PL' }, { id: 'Bil', name: 'Bilangan', chapters: 36, test: 'PL' },
-  { id: 'Ul', name: 'Ulangan', chapters: 34, test: 'PL' }, { id: 'Yos', name: 'Yosua', chapters: 24, test: 'PL' },
+  { id: 'Ima', name: 'Imamat', chapters: 27, test: 'PL' }, { id: 'Bil', name: 'Bilangan', chapters: 36, test: 'PL' },
+  { id: 'Ula', name: 'Ulangan', chapters: 34, test: 'PL' }, { id: 'Yos', name: 'Yosua', chapters: 24, test: 'PL' },
   { id: 'Hak', name: 'Hakim-hakim', chapters: 21, test: 'PL' }, { id: 'Rut', name: 'Rut', chapters: 4, test: 'PL' },
-  { id: '1Sam', name: '1 Samuel', chapters: 31, test: 'PL' }, { id: '2Sam', name: '2 Samuel', chapters: 24, test: 'PL' },
-  { id: '1Raj', name: '1 Raja-raja', chapters: 22, test: 'PL' }, { id: '2Raj', name: '2 Raja-raja', chapters: 25, test: 'PL' },
-  { id: '1Taw', name: '1 Tawarikh', chapters: 29, test: 'PL' }, { id: '2Taw', name: '2 Tawarikh', chapters: 36, test: 'PL' },
+  { id: '1Sa', name: '1 Samuel', chapters: 31, test: 'PL' }, { id: '2Sa', name: '2 Samuel', chapters: 24, test: 'PL' },
+  { id: '1Ra', name: '1 Raja-raja', chapters: 22, test: 'PL' }, { id: '2Ra', name: '2 Raja-raja', chapters: 25, test: 'PL' },
+  { id: '1Ta', name: '1 Tawarikh', chapters: 29, test: 'PL' }, { id: '2Ta', name: '2 Tawarikh', chapters: 36, test: 'PL' },
   { id: 'Ezr', name: 'Ezra', chapters: 10, test: 'PL' }, { id: 'Neh', name: 'Nehemia', chapters: 13, test: 'PL' },
   { id: 'Est', name: 'Ester', chapters: 10, test: 'PL' }, { id: 'Ayb', name: 'Ayub', chapters: 42, test: 'PL' },
   { id: 'Mzm', name: 'Mazmur', chapters: 150, test: 'PL' }, { id: 'Ams', name: 'Amsal', chapters: 31, test: 'PL' },
@@ -23,25 +23,25 @@ const BIBLE_BOOKS = [
   { id: 'Yes', name: 'Yesaya', chapters: 66, test: 'PL' }, { id: 'Yer', name: 'Yeremia', chapters: 52, test: 'PL' },
   { id: 'Rat', name: 'Ratapan', chapters: 5, test: 'PL' }, { id: 'Yeh', name: 'Yehezkiel', chapters: 48, test: 'PL' },
   { id: 'Dan', name: 'Daniel', chapters: 12, test: 'PL' }, { id: 'Hos', name: 'Hosea', chapters: 14, test: 'PL' },
-  { id: 'Yoel', name: 'Yoel', chapters: 3, test: 'PL' }, { id: 'Am', name: 'Amos', chapters: 9, test: 'PL' },
-  { id: 'Ob', name: 'Obaja', chapters: 1, test: 'PL' }, { id: 'Yun', name: 'Yunus', chapters: 4, test: 'PL' },
+  { id: 'Yoe', name: 'Yoel', chapters: 3, test: 'PL' }, { id: 'Amo', name: 'Amos', chapters: 9, test: 'PL' },
+  { id: 'Oba', name: 'Obaja', chapters: 1, test: 'PL' }, { id: 'Yun', name: 'Yunus', chapters: 4, test: 'PL' },
   { id: 'Mik', name: 'Mikha', chapters: 7, test: 'PL' }, { id: 'Nah', name: 'Nahum', chapters: 3, test: 'PL' },
   { id: 'Hab', name: 'Habakuk', chapters: 3, test: 'PL' }, { id: 'Zef', name: 'Zefanya', chapters: 3, test: 'PL' },
-  { id: 'Hag', name: 'Hagai', chapters: 2, test: 'PL' }, { id: 'Za', name: 'Zakharia', chapters: 14, test: 'PL' },
+  { id: 'Hag', name: 'Hagai', chapters: 2, test: 'PL' }, { id: 'Zak', name: 'Zakharia', chapters: 14, test: 'PL' },
   { id: 'Mal', name: 'Maleakhi', chapters: 4, test: 'PL' },
   { id: 'Mat', name: 'Matius', chapters: 28, test: 'PB' }, { id: 'Mrk', name: 'Markus', chapters: 16, test: 'PB' },
   { id: 'Luk', name: 'Lukas', chapters: 24, test: 'PB' }, { id: 'Yoh', name: 'Yohanes', chapters: 21, test: 'PB' },
-  { id: 'Kis', name: 'Kisah Para Rasul', chapters: 28, test: 'PB' }, { id: 'Rm', name: 'Roma', chapters: 16, test: 'PB' },
-  { id: '1Kor', name: '1 Korintus', chapters: 16, test: 'PB' }, { id: '2Kor', name: '2 Korintus', chapters: 13, test: 'PB' },
-  { id: 'Gal', name: 'Galatia', chapters: 6, test: 'PB' }, { id: 'Ef', name: 'Efesus', chapters: 6, test: 'PB' },
+  { id: 'Kis', name: 'Kisah Para Rasul', chapters: 28, test: 'PB' }, { id: 'Rom', name: 'Roma', chapters: 16, test: 'PB' },
+  { id: '1Ko', name: '1 Korintus', chapters: 16, test: 'PB' }, { id: '2Ko', name: '2 Korintus', chapters: 13, test: 'PB' },
+  { id: 'Gal', name: 'Galatia', chapters: 6, test: 'PB' }, { id: 'Efe', name: 'Efesus', chapters: 6, test: 'PB' },
   { id: 'Flp', name: 'Filipi', chapters: 4, test: 'PB' }, { id: 'Kol', name: 'Kolose', chapters: 4, test: 'PB' },
-  { id: '1Tes', name: '1 Tesalonika', chapters: 5, test: 'PB' }, { id: '2Tes', name: '2 Tesalonika', chapters: 3, test: 'PB' },
-  { id: '1Tim', name: '1 Timotius', chapters: 6, test: 'PB' }, { id: '2Tim', name: '2 Timotius', chapters: 4, test: 'PB' },
+  { id: '1Te', name: '1 Tesalonika', chapters: 5, test: 'PB' }, { id: '2Te', name: '2 Tesalonika', chapters: 3, test: 'PB' },
+  { id: '1Ti', name: '1 Timotius', chapters: 6, test: 'PB' }, { id: '2Ti', name: '2 Timotius', chapters: 4, test: 'PB' },
   { id: 'Tit', name: 'Titus', chapters: 3, test: 'PB' }, { id: 'Flm', name: 'Filemon', chapters: 1, test: 'PB' },
   { id: 'Ibr', name: 'Ibrani', chapters: 13, test: 'PB' }, { id: 'Yak', name: 'Yakobus', chapters: 5, test: 'PB' },
-  { id: '1Ptr', name: '1 Petrus', chapters: 5, test: 'PB' }, { id: '2Ptr', name: '2 Petrus', chapters: 3, test: 'PB' },
-  { id: '1Yoh', name: '1 Yohanes', chapters: 5, test: 'PB' }, { id: '2Yoh', name: '2 Yohanes', chapters: 1, test: 'PB' },
-  { id: '3Yoh', name: '3 Yohanes', chapters: 1, test: 'PB' }, { id: 'Yud', name: 'Yudas', chapters: 1, test: 'PB' },
+  { id: '1Pt', name: '1 Petrus', chapters: 5, test: 'PB' }, { id: '2Pt', name: '2 Petrus', chapters: 3, test: 'PB' },
+  { id: '1Yo', name: '1 Yohanes', chapters: 5, test: 'PB' }, { id: '2Yo', name: '2 Yohanes', chapters: 1, test: 'PB' },
+  { id: '3Yo', name: '3 Yohanes', chapters: 1, test: 'PB' }, { id: 'Yud', name: 'Yudas', chapters: 1, test: 'PB' },
   { id: 'Why', name: 'Wahyu', chapters: 22, test: 'PB' }
 ];
 
@@ -55,7 +55,7 @@ export default function App() {
   
   const [isAdmin, setIsAdmin] = useState(true);
   const [userId, setUserId] = useState<string>(ADMIN_ID.toString());
-  const [userName, setUserName] = useState<string>('Saudara');
+  const [userName, setUserName] = useState<string>('Pengguna');
   
   const [dailyVerse, setDailyVerse] = useState<any>(null);
   const [communities, setCommunities] = useState<any[]>([]);
@@ -72,11 +72,14 @@ export default function App() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [noteInput, setNoteInput] = useState('');
   const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
   const [viewingNote, setViewingNote] = useState<any>(null);
+  
+  const [lastColor, setLastColor] = useState(localStorage.getItem('bible_last_color') || 'yellow');
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,53 +93,76 @@ export default function App() {
         setChannels(data.channels || []);
         setNews(data.news || []);
       }
-    } catch (error) { 
-      console.error('API Fetch Error:', error); 
-    }
+    } catch (error) { console.error('API Fetch Error:', error); }
   };
 
   const fetchSavedData = async () => {
     try {
       const res = await fetch(`${API_URL}/saved-verses?userId=${userId}&t=${new Date().getTime()}`);
-      if (res.ok) {
-        setSavedVerses(await res.json());
-      }
-    } catch (error) {
-      console.error('API Fetch Saved Error:', error);
-    }
+      if (res.ok) setSavedVerses(await res.json());
+    } catch (error) { console.error('API Fetch Saved Error:', error); }
   };
 
   useEffect(() => {
+    let cleanupInsets: (() => void) | undefined;
+
     try {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg) { 
-        tg.ready(); 
-        tg.expand(); 
-        
-        try { tg.requestFullscreen(); } catch (e) {}
-        try { 
-          tg.setHeaderColor('#fafafa'); 
-          tg.setBackgroundColor('#fafafa'); 
+      if (tg) {
+        tg.ready();
+        tg.expand();
+
+        try {
+          if (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')) {
+            tg.requestFullscreen?.();
+            tg.disableVerticalSwipes?.();
+          }
         } catch (e) {}
-        
+
+        try {
+          tg.setHeaderColor?.('#fafafa');
+          tg.setBackgroundColor?.('#fafafa');
+        } catch (e) {}
+
+        const applyInsets = () => {
+          const root = document.documentElement.style;
+          const safe = tg.safeAreaInset || {};
+          const content = tg.contentSafeAreaInset || {};
+          // Fallback ke 0 jika API Telegram belum termuat agar tidak error CSS
+          root.setProperty('--tg-safe-top', `${safe.top || 0}px`);
+          root.setProperty('--tg-safe-bottom', `${safe.bottom || 0}px`);
+          root.setProperty('--tg-content-top', `${content.top || 0}px`);
+          root.setProperty('--tg-content-bottom', `${content.bottom || 0}px`);
+        };
+
+        applyInsets();
+        tg.onEvent?.('safeAreaChanged', applyInsets);
+        tg.onEvent?.('contentSafeAreaChanged', applyInsets);
+        tg.onEvent?.('viewportChanged', applyInsets);
+
         const currentUserId = tg.initDataUnsafe?.user?.id?.toString();
         const firstName = tg.initDataUnsafe?.user?.first_name;
-        
+
         if (firstName) setUserName(firstName);
         if (currentUserId) {
-           setUserId(currentUserId);
-           setIsAdmin(Number(currentUserId) === ADMIN_ID);
+          setUserId(currentUserId);
+          setIsAdmin(Number(currentUserId) === ADMIN_ID);
         }
+
+        cleanupInsets = () => {
+          tg.offEvent?.('safeAreaChanged', applyInsets);
+          tg.offEvent?.('contentSafeAreaChanged', applyInsets);
+          tg.offEvent?.('viewportChanged', applyInsets);
+        };
       }
-    } catch (error) { 
-      console.warn('Not in Telegram environment'); 
-    }
+    } catch (error) { console.warn('Not in Telegram environment'); }
+
     fetchHomeData();
+
+    return cleanupInsets;
   }, []);
 
-  useEffect(() => {
-    fetchSavedData();
-  }, [userId, activeTab]);
+  useEffect(() => { fetchSavedData(); }, [userId, activeTab]);
 
   useEffect(() => {
     const fetchBibleVerses = async () => {
@@ -144,16 +170,9 @@ export default function App() {
       setBibleVerses([]); 
       try {
         const resBible = await fetch(`${API_URL}/bible?book=${currentBook.id}&chapter=${currentChapter}&version=${currentVersion.id}`);
-        if (resBible.ok) {
-          const bibleData = await resBible.json();
-          setBibleVerses(bibleData);
-        }
-      } catch (error) { 
-        console.error('API Fetch Error:', error); 
-      } 
-      finally { 
-        setIsLoadingBible(false); 
-      }
+        if (resBible.ok) setBibleVerses(await resBible.json());
+      } catch (error) { console.error('API Fetch Error:', error); } 
+      finally { setIsLoadingBible(false); }
     };
     fetchBibleVerses();
   }, [currentBook, currentChapter, currentVersion]); 
@@ -182,9 +201,7 @@ export default function App() {
     }, 400); 
   };
 
-  const handleTouchEnd = () => { 
-    if (pressTimer.current) clearTimeout(pressTimer.current); 
-  };
+  const handleTouchEnd = () => { if (pressTimer.current) clearTimeout(pressTimer.current); };
 
   const triggerAction = (msg: string) => {
     setToastMsg(msg);
@@ -210,7 +227,11 @@ export default function App() {
     const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
     if (selectedVerseData.length === 0) return;
 
-    // OPTIMISTIC UI UPDATE: Langsung update state lokal agar catatan & warna muncul instan tanpa lag
+    if (colorParam) {
+      setLastColor(colorParam);
+      localStorage.setItem('bible_last_color', colorParam);
+    }
+
     const newSavedVerses = [...savedVerses];
 
     try {
@@ -222,24 +243,19 @@ export default function App() {
         const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
 
         const payload = {
-          id: existing?.id, // Kirim ID jika sudah ada agar backend bisa Update
-          user_id: userId,
-          book: currentBook.name,
-          chapter: currentChapter,
-          verse: v.verse,
-          content: v.content,
-          color: finalColor,
-          note: finalNote
+          id: existing?.id, 
+          user_id: String(userId),
+          book: String(currentBook.name),
+          chapter: Number(currentChapter),
+          verse: Number(v.verse),
+          content: String(v.content),
+          color: String(finalColor),
+          note: String(finalNote)
         };
 
-        // Langsung tampilkan di UI lokal
-        if (existingIndex >= 0) {
-          newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
-        } else {
-          newSavedVerses.push({ ...payload, id: Date.now() + Math.random() });
-        }
+        if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
+        else newSavedVerses.push({ ...payload, id: Date.now() + Math.random() });
 
-        // Tembak ke API di belakang layar
         await fetch(`${API_URL}/saved-verses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -247,19 +263,38 @@ export default function App() {
         });
       }
       
-      setSavedVerses(newSavedVerses); // Terapkan pembaruan lokal
-      triggerAction(noteParam !== null ? 'Catatan tersimpan!' : 'Warna berhasil diterapkan!');
+      setSavedVerses(newSavedVerses);
+      triggerAction(noteParam !== null ? 'Catatan tersimpan di Tab Simpan!' : 'Warna berhasil diterapkan!');
       
       setIsNoteModalOpen(false);
       setIsColorPaletteOpen(false);
       setNoteInput('');
       setSelectedVerses([]);
       
-      // Sinkronisasi ulang secara diam-diam
       fetchSavedData(); 
     } catch (e: any) {
       triggerAction("Gagal menyambung ke server.");
     }
+  };
+
+  const handleShare = () => {
+    const selectedTexts = bibleVerses
+      .filter(v => selectedVerses.includes(v.id))
+      .map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse}`)
+      .join('\n\n');
+    const fullText = `${selectedTexts}\n\n📖 @bibleonbot`;
+    
+    const tg = (window as any).Telegram?.WebApp;
+    const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(fullText)}`;
+    
+    if (tg && tg.openTelegramLink) {
+        tg.openTelegramLink(shareUrl);
+    } else {
+        window.open(shareUrl, '_blank');
+    }
+    
+    setSelectedVerses([]);
+    setIsColorPaletteOpen(false);
   };
 
   const handleCopy = () => {
@@ -274,21 +309,21 @@ export default function App() {
     setIsColorPaletteOpen(false);
   };
 
+  const filteredBooks = BIBLE_BOOKS.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   return (
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
       
-      {/* Header dengan Safe Area Top agar tidak tertutup tombol UI Telegram */}
-      <header 
-        className="flex-none px-5 pb-4 bg-white z-40 border-b border-gray-100 flex justify-between items-end shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]"
-        style={{ paddingTop: 'max(1.5rem, var(--tg-safe-area-inset-top, 2.5rem))' }}
-      >
-        <div className="flex items-center gap-3">
-          <img src="https://i.ibb.co/0VytPmL7/31399-removebg-preview.png" alt="Logo" className="w-8 h-8 object-contain" />
-          <h1 className="font-extrabold text-lg tracking-tight text-gray-900">Alkitab ID</h1>
-        </div>
-      </header>
+      {/* Top Background Fix untuk Safe Area agar aman di semua jenis HP */}
+      <div
+        className="fixed top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none"
+        style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
+      ></div>
 
-      <main className="flex-1 scroll-area no-scrollbar relative pb-32">
+      <main
+        className="flex-1 scroll-area no-scrollbar relative pb-32"
+        style={{ paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
+      >
         {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} userName={userName} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
         {activeTab === 'bible' && (
           <BibleTab 
@@ -301,13 +336,10 @@ export default function App() {
           />
         )}
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
-        
-        {activeTab === 'admin' && (
-          <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />
-        )}
+        {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
 
-      {/* POPUP PILIH KITAB */}
+      {/* SELECTOR MODAL DENGAN PENCARIAN CERDAS */}
       {isSelectorOpen && (
         <div className="fixed inset-0 z-[100] flex flex-col justify-end">
           <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
@@ -326,6 +358,15 @@ export default function App() {
               </button>
             </div>
 
+            {selectorStep === 'book' && (
+              <div className="px-5 py-3 border-b border-gray-100 shrink-0 bg-white">
+                <div className="relative">
+                  <i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <input type="text" placeholder="Cari kitab (cth: Yohanes)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 rounded-xl py-3 pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-gray-300 transition" />
+                </div>
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa]">
               {selectorStep === 'version' ? (
                 <div className="space-y-2">
@@ -338,26 +379,31 @@ export default function App() {
                 </div>
               ) : selectorStep === 'book' ? (
                 <div className="space-y-6">
-                  <div>
-                    <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Lama</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {BIBLE_BOOKS.filter(b => b.test === 'PL').map((book) => (
-                        <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>
-                          {book.name}
-                        </button>
-                      ))}
+                  {filteredBooks.filter(b => b.test === 'PL').length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Lama</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filteredBooks.filter(b => b.test === 'PL').map((book) => (
+                          <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>
+                            {book.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {BIBLE_BOOKS.filter(b => b.test === 'PB').map((book) => (
-                        <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>
-                          {book.name}
-                        </button>
-                      ))}
+                  )}
+                  {filteredBooks.filter(b => b.test === 'PB').length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filteredBooks.filter(b => b.test === 'PB').map((book) => (
+                          <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>
+                            {book.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 py-4">Kitab tidak ditemukan.</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-5 gap-2">
@@ -397,7 +443,7 @@ export default function App() {
         </div>
       )}
 
-      {/* POPUP BACA CATATAN DI TAB ALKITAB */}
+      {/* POPUP BACA CATATAN */}
       {viewingNote && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-900/60 p-5 animate-[fadeIn_0.2s_ease-out] note-modal-box">
           <div className="bg-white w-full max-w-[400px] rounded-[1.5rem] p-6 shadow-2xl relative">
@@ -420,30 +466,40 @@ export default function App() {
         </div>
       )}
 
-      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-[1.25rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'bottom-8 opacity-100 visible translate-y-0' : 'bottom-0 opacity-0 invisible translate-y-10'}`}>
+      {/* ACTION MENU (MUNCUL JIKA ADA AYAT YANG DIPILIH) */}
+      <div 
+        className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-[1.25rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-24 pointer-events-none'}`}
+        style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}
+      >
         {!isColorPaletteOpen ? (
           <div className="flex gap-1 w-full justify-between pr-2">
             <div className="flex gap-1">
-              <button onClick={() => setIsColorPaletteOpen(true)} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition">
-                <div className="w-4 h-4 rounded-full bg-yellow-300 shadow-inner"></div>
+              <button onClick={() => saveVerseData(lastColor, null)} className="flex flex-col items-center justify-center gap-1 w-12 h-12 hover:bg-gray-800 rounded-xl transition">
+                <div className={`w-4 h-4 rounded-full shadow-inner ${lastColor === 'yellow' ? 'bg-[#fef08a]' : lastColor === 'green' ? 'bg-[#bbf7d0]' : lastColor === 'blue' ? 'bg-[#bfdbfe]' : lastColor === 'pink' ? 'bg-[#fbcfe8]' : 'bg-[#e9d5ff]'}`}></div>
                 <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Warna</span>
               </button>
-              <button onClick={handleCopy} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
+              <button onClick={() => setIsColorPaletteOpen(true)} className="flex items-center justify-center w-6 h-12 hover:bg-gray-800 rounded-xl transition text-gray-400">
+                <i className="ph-bold ph-caret-right text-[12px]"></i>
+              </button>
+              
+              <div className="w-px h-6 bg-gray-700 mx-0.5 mt-3"></div>
+
+              <button onClick={handleShare} className="flex flex-col items-center justify-center gap-1 w-12 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
+                <i className="ph-bold ph-telegram-logo text-[18px]"></i>
+                <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Share</span>
+              </button>
+              <button onClick={handleCopy} className="flex flex-col items-center justify-center gap-1 w-12 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
                 <i className="ph-bold ph-copy text-[18px]"></i>
-                <span className="text-[9px] font-bold uppercase tracking-wider">Salin</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Salin</span>
               </button>
-              <button onClick={openNoteModal} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
+              <button onClick={openNoteModal} className="flex flex-col items-center justify-center gap-1 w-12 h-12 hover:bg-gray-800 rounded-xl transition text-gray-300">
                 <i className="ph-bold ph-pencil-simple text-[18px]"></i>
-                <span className="text-[9px] font-bold uppercase tracking-wider">Catat</span>
-              </button>
-              <button onClick={() => { triggerAction('Gunakan tombol Salin (Copy) untuk Share ke chat!'); setIsColorPaletteOpen(false); }} className="flex flex-col items-center justify-center gap-1 w-14 h-12 hover:bg-gray-800 rounded-xl transition text-blue-400">
-                <i className="ph-bold ph-share-network text-[18px]"></i>
-                <span className="text-[9px] font-bold uppercase tracking-wider">Share</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">Catat</span>
               </button>
             </div>
             <div className="flex items-center">
               <div className="w-px h-8 bg-gray-700 mx-2"></div>
-              <button onClick={() => { setSelectedVerses([]); setIsColorPaletteOpen(false); }} className="w-12 h-12 flex items-center justify-center hover:bg-gray-800 rounded-xl transition text-gray-400">
+              <button onClick={() => { setSelectedVerses([]); setIsColorPaletteOpen(false); }} className="w-10 h-12 flex items-center justify-center hover:bg-gray-800 rounded-xl transition text-gray-400">
                 <i className="ph-bold ph-x text-xl"></i>
               </button>
             </div>
@@ -465,7 +521,11 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote) ? 'bottom-[-100px] opacity-0 invisible' : 'bottom-6 opacity-100 visible'}`}>
+      {/* NAVBAR BAWAH */}
+      <nav 
+        className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`}
+        style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}
+      >
         <button onClick={() => { setActiveTab('home'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}>
           <i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i>
           <span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span>
@@ -480,10 +540,10 @@ export default function App() {
         </button>
       </nav>
 
-      {/* Toast Notifikasi dengan Batas Aman di Atas */}
+      {/* TOAST NOTIFIKASI */}
       <div 
         className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
-        style={{ top: showToast ? 'max(1.5rem, var(--tg-safe-area-inset-top, 2.5rem))' : '-100px' }}
+        style={{ top: showToast ? 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 1.5rem)' : '-100px' }}
       >
         <i className="ph-fill ph-check-circle text-green-400 text-lg"></i>
         <span>{toastMsg}</span>
