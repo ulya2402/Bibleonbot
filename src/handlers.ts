@@ -60,7 +60,7 @@ export class BotHandler {
 
         if (text.startsWith('/start')) {
 
-            const webAppUrl = 'https://main.bibleonbot-webapp.pages.dev';
+            const webAppUrl = 'https://bibleonbot-testing-webapp.pages.dev/';
 
             const replyMarkup = {
                 inline_keyboard: [[

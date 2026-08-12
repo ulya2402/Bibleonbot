@@ -96,18 +96,17 @@ export class ApiHandler {
                 if (request.method === 'POST') {
                     const body: any = await request.json();
                     
-                    // Cek apakah ayat ini sudah pernah disimpan sebelumnya
                     const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
                         .bind(body.user_id, body.book, body.chapter, body.verse).first();
 
                     if (existing) {
-                        // Jika sudah ada, cukup update warnanya
-                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ? WHERE id = ?")
-                            .bind(body.color, body.content, existing.id).run();
+                        // PERBAIKAN: Menambahkan binding untuk 'note'
+                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ? WHERE id = ?")
+                            .bind(body.color, body.content, body.note, existing.id).run();
                     } else {
-                        // Jika belum ada, simpan sebagai ayat baru
-                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color) VALUES (?, ?, ?, ?, ?, ?)")
-                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color).run();
+                        // PERBAIKAN: Menambahkan kolom 'note' di INSERT dan values-nya
+                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
+                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note).run();
                     }
                     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
                 }
