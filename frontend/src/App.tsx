@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import type { UIEvent } from 'react';
 import HomeTab from './tabs/HomeTab';
 import BibleTab from './tabs/BibleTab';
 import SavedTab from './tabs/SavedTab';
 import AdminTab from './tabs/AdminTab';
+import { BIBLE_LANGUAGES, ALL_BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION,  } from './types/bible';
+import type { BibleVersion } from './types/bible';
 
 const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
-const ADMIN_ID = 8189771306;
+const ADMIN_ID = 513342558;
 
 // PERBAIKAN FATAL: Menyamakan singkatan (id) dengan tb.csv agar ayat 100% muncul
 const BIBLE_BOOKS = [
@@ -45,8 +48,6 @@ const BIBLE_BOOKS = [
   { id: 'Why', name: 'Wahyu', chapters: 22, test: 'PB' }
 ];
 
-const BIBLE_VERSIONS = [{ id: 'TB', name: 'Terjemahan Baru (TB)' }];
-
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]);
@@ -65,7 +66,11 @@ export default function App() {
   
   const [currentBook, setCurrentBook] = useState(BIBLE_BOOKS[0]);
   const [currentChapter, setCurrentChapter] = useState(1);
-  const [currentVersion, setCurrentVersion] = useState(BIBLE_VERSIONS[0]);
+  const [currentVersion, setCurrentVersion] = useState<BibleVersion>(() => {
+    const savedVerId = localStorage.getItem('bible_preferred_version');
+    const matched = ALL_BIBLE_VERSIONS.find(v => v.id === savedVerId);
+    return matched || DEFAULT_BIBLE_VERSION;
+  });
   const [bibleVerses, setBibleVerses] = useState<any[]>([]);
   const [isLoadingBible, setIsLoadingBible] = useState(false);
 
@@ -81,7 +86,26 @@ export default function App() {
   
   const [lastColor, setLastColor] = useState(localStorage.getItem('bible_last_color') || 'yellow');
 
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  const mainRef = useRef<HTMLElement | null>(null);
+
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMainScroll = (e: UIEvent<HTMLElement>) => {
+    const currentScrollY = e.currentTarget.scrollTop;
+    const scrollDifference = currentScrollY - lastScrollY.current;
+
+    if (currentScrollY <= 30) {
+      setIsNavVisible(true);
+    } else if (scrollDifference > 10 && currentScrollY > 70) {
+      setIsNavVisible(false);
+    } else if (scrollDifference < -10) {
+      setIsNavVisible(true);
+    }
+
+    lastScrollY.current = currentScrollY;
+  };
 
   const fetchHomeData = async () => {
     try {
@@ -93,14 +117,18 @@ export default function App() {
         setChannels(data.channels || []);
         setNews(data.news || []);
       }
-    } catch (error) { console.error('API Fetch Error:', error); }
+    } catch (error) {
+      console.error('Fetch Home Data Error:', error);
+    }
   };
 
   const fetchSavedData = async () => {
     try {
       const res = await fetch(`${API_URL}/saved-verses?userId=${userId}&t=${new Date().getTime()}`);
       if (res.ok) setSavedVerses(await res.json());
-    } catch (error) { console.error('API Fetch Saved Error:', error); }
+    } catch (error) {
+      console.error('Fetch Saved Data Error:', error);
+    }
   };
 
   useEffect(() => {
@@ -152,10 +180,16 @@ export default function App() {
       try {
         const resBible = await fetch(`${API_URL}/bible?book=${currentBook.id}&chapter=${currentChapter}&version=${currentVersion.id}`);
         if (resBible.ok) setBibleVerses(await resBible.json());
-      } catch (error) {} finally { setIsLoadingBible(false); }
+      } catch (error) {
+        console.error('Fetch Bible Verses Error:', error);
+      } finally { 
+        setIsLoadingBible(false); 
+      }
     };
     fetchBibleVerses();
-  }, [currentBook, currentChapter, currentVersion]); 
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+    setIsNavVisible(true);
+  }, [currentBook, currentChapter, currentVersion]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -238,7 +272,6 @@ export default function App() {
         }
       }
       
-      // PERBAIKAN FATAL: Memperbarui UI secara "Optimistic"
       setSavedVerses(newSavedVerses); 
       triggerAction(noteParam !== null ? 'Catatan tersimpan!' : 'Warna diterapkan!');
       
@@ -247,14 +280,11 @@ export default function App() {
       setNoteInput(''); 
       setSelectedVerses([]);
       
-      // fetchSavedData() SENGAJA DIHAPUS DARI SINI
-      // Agar UI tidak di-reset oleh database yang telat sinkron (Replication Delay)
-      
     } catch (e: any) { triggerAction("Gagal menyambung ke server."); }
   };
 
   const handleShare = () => {
-    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse}`).join('\n\n');
+    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`).join('\n\n');
     const fullText = `${selectedTexts}\n\n📖 @bibleonbot`;
     const tg = (window as any).Telegram?.WebApp;
     const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(fullText)}`;
@@ -263,10 +293,23 @@ export default function App() {
   };
 
   const handleCopy = () => {
-    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse}`).join('\n\n');
+    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `"${v.content}"\n${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`).join('\n\n');
     navigator.clipboard.writeText(`${selectedTexts}\n\n📖 @bibleonbot`);
-    triggerAction('Ayat disalin dengan format Kutipan!');
+    triggerAction('Ayat disalin!');
     setSelectedVerses([]); setIsColorPaletteOpen(false);
+  };
+
+  const handleSelectVersion = (version: BibleVersion) => {
+    setCurrentVersion(version);
+    localStorage.setItem('bible_preferred_version', version.id);
+    setIsSelectorOpen(false);
+  };
+
+  const switchActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    setSelectedVerses([]);
+    setIsNavVisible(true);
+    if (mainRef.current) mainRef.current.scrollTop = 0;
   };
 
   const filteredBooks = BIBLE_BOOKS.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -274,7 +317,15 @@ export default function App() {
   return (
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
       <div className="fixed top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}></div>
-      <main className="flex-1 scroll-area no-scrollbar relative pb-32" style={{ paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}>
+      <main 
+        ref={mainRef}
+        onScroll={handleMainScroll}
+        className="flex-1 scroll-area no-scrollbar relative" 
+        style={{ 
+          paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
+          paddingBottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 7rem)'
+        }}
+      >
         {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} userName={userName} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
         {activeTab === 'bible' && <BibleTab currentBook={currentBook} currentChapter={currentChapter} currentVersion={currentVersion} setSelectorStep={setSelectorStep} setIsSelectorOpen={setIsSelectorOpen} isLoadingBible={isLoadingBible} bibleVerses={bibleVerses} savedVerses={savedVerses} selectedVerses={selectedVerses} handleVerseSelect={handleVerseSelect} handleTouchStart={handleTouchStart} handleTouchEnd={handleTouchEnd} setViewingNote={setViewingNote} />}
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
@@ -286,8 +337,14 @@ export default function App() {
           <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
           <div className="relative bg-white w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-white rounded-t-[1.5rem]">
-              {selectorStep === 'chapter' ? <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button> : <div className="w-8"></div>}
-              <h3 className="font-extrabold text-lg text-gray-900">{selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}</h3>
+              {selectorStep === 'chapter' ? (
+                <button onClick={() => setSelectorStep('book')} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-arrow-left text-xl"></i></button>
+              ) : (
+                <div className="w-8"></div>
+              )}
+              <h3 className="font-extrabold text-lg text-gray-900">
+                {selectorStep === 'book' ? 'Pilih Kitab' : selectorStep === 'version' ? 'Pilih Terjemahan' : `Pasal ${tempSelectedBook.name}`}
+              </h3>
               <button onClick={() => setIsSelectorOpen(false)} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-x text-xl"></i></button>
             </div>
             {selectorStep === 'book' && (
@@ -297,17 +354,94 @@ export default function App() {
             )}
             <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa]">
               {selectorStep === 'version' ? (
-                <div className="space-y-2">
-                  {BIBLE_VERSIONS.map((ver) => <button key={ver.id} onClick={() => { setCurrentVersion(ver); setIsSelectorOpen(false); }} className={`w-full p-4 rounded-xl text-left font-bold text-sm transition border flex justify-between items-center ${currentVersion.id === ver.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}><span>{ver.name}</span>{currentVersion.id === ver.id && <i className="ph-bold ph-check-circle text-lg text-green-400"></i>}</button>)}
+                <div className="space-y-6">
+                  {BIBLE_LANGUAGES.map((group) => (
+                    <div key={group.code} className="space-y-2.5">
+                      <div className="flex items-center gap-2 px-1">
+                        <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">{group.name}</span>
+                        <div className="flex-1 h-[1px] bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-2">
+                        {group.versions.map((ver) => {
+                          const isSelected = currentVersion.id === ver.id;
+                          return (
+                            <button 
+                              key={ver.id} 
+                              onClick={() => handleSelectVersion(ver)} 
+                              className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${isSelected ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-white text-gray-800 border-gray-100 hover:border-gray-300 shadow-sm'}`}
+                            >
+                              <div className="pr-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-bold text-[14px]">{ver.name}</span>
+                                  {ver.testamentScope === 'NT' && (
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md ${isSelected ? 'bg-gray-800 text-yellow-300 border border-gray-700' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>PB</span>
+                                  )}
+                                </div>
+                                {ver.description && (
+                                  <p className={`text-[11px] leading-tight ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>{ver.description}</p>
+                                )}
+                              </div>
+                              {isSelected && <i className="ph-bold ph-check-circle text-xl text-green-400 shrink-0"></i>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : selectorStep === 'book' ? (
                 <div className="space-y-6">
-                  {filteredBooks.filter(b => b.test === 'PL').length > 0 && <div><h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Lama</h4><div className="grid grid-cols-2 gap-2">{filteredBooks.filter(b => b.test === 'PL').map((book) => <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>{book.name}</button>)}</div></div>}
-                  {filteredBooks.filter(b => b.test === 'PB').length > 0 && <div><h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4><div className="grid grid-cols-2 gap-2">{filteredBooks.filter(b => b.test === 'PB').map((book) => <button key={book.id} onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>{book.name}</button>)}</div></div>}
+                  {filteredBooks.filter(b => b.test === 'PL').length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Perjanjian Lama</h4>
+                        {currentVersion.testamentScope === 'NT' && (
+                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Tidak tersedia di {currentVersion.shortName}</span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filteredBooks.filter(b => b.test === 'PL').map((book) => (
+                          <button 
+                            key={book.id} 
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} 
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                          >
+                            {book.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {filteredBooks.filter(b => b.test === 'PB').length > 0 && (
+                    <div>
+                      <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {filteredBooks.filter(b => b.test === 'PB').map((book) => (
+                          <button 
+                            key={book.id} 
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} 
+                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                          >
+                            {book.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 py-4">Kitab tidak ditemukan.</p>}
                 </div>
               ) : (
-                <div className="grid grid-cols-5 gap-2">{Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => <button key={ch} onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }} className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}>{ch}</button>)}</div>
+                <div className="grid grid-cols-5 gap-2">
+                  {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
+                    <button 
+                      key={ch} 
+                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }} 
+                      className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -356,10 +490,10 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
-        <button onClick={() => { setActiveTab('home'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
-        <button onClick={() => { setActiveTab('bible'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
-        <button onClick={() => { setActiveTab('saved'); setSelectedVerses([]); }} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
+      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+        <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
+        <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
+        <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
       </nav>
 
       <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} style={{ top: showToast ? 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 1.5rem)' : '-100px' }}>

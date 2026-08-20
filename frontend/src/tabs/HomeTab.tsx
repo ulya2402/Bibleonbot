@@ -18,6 +18,32 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
     }
   };
 
+  const formatNewsDate = (dateInput: string) => {
+    if (!dateInput) return 'Baru saja';
+    try {
+      const formatted = dateInput.includes('T') ? dateInput : dateInput.replace(' ', 'T') + 'Z';
+      const date = new Date(formatted);
+      if (isNaN(date.getTime())) return 'Baru saja';
+
+      const now = new Date();
+      const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+      if (diffInSeconds < 60) return 'Baru saja';
+      const diffInMinutes = Math.floor(diffInSeconds / 60);
+      if (diffInMinutes < 60) return `${diffInMinutes} mnt lalu`;
+      const diffInHours = Math.floor(diffInMinutes / 60);
+      if (diffInHours < 24) return `${diffInHours} jam lalu`;
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays === 1) return 'Kemarin';
+      if (diffInDays < 7) return `${diffInDays} hari lalu`;
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+    } catch (e) {
+      return 'Baru saja';
+    }
+  };
+
   return (
     <div className="animate-fadeIn px-5 space-y-8 pt-4">
       
@@ -150,7 +176,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
                   <span className={`text-[9px] font-extrabold uppercase tracking-widest mb-1 block ${isArticle ? 'text-blue-600' : 'text-orange-600'}`}>{n.category}</span>
                   <h4 className="font-bold text-[13px] leading-tight text-gray-900 line-clamp-2 mb-1.5 group-hover:text-blue-600 transition">{n.title}</h4>
                   <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium">
-                    <div className="flex items-center gap-1"><i className="ph-fill ph-clock"></i> Baru saja</div>
+                    <div className="flex items-center gap-1"><i className="ph-fill ph-clock"></i> {formatNewsDate(n.created_at)}</div>
                     <span>•</span>
                     <div className="flex items-center gap-1 text-gray-500"><i className="ph-fill ph-globe"></i> {getDomainName(n.link)}</div>
                   </div>
@@ -180,10 +206,10 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               
               <h3 className="text-white font-bold text-[18px] leading-tight mb-2 tracking-tight">Jadilah Saluran Berkat</h3>
               <p className="text-gray-300 text-[12px] leading-relaxed mb-6 font-medium px-4">
-                  Dukungan Anda membantu Alkitab ID terus berkembang dan tetap bebas iklan mengganggu.
+                  Dukungan Anda membantu Alkitab ID terus berkembang dan tetap bebas iklan.
               </p>
               
-              <a href="https://saweria.co/bibleonbot" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-7 py-3 rounded-full text-[11px] font-extrabold uppercase tracking-widest transition-all backdrop-blur-md flex items-center gap-2 active:scale-95">
+              <a href="https://saweria.co/tobiasilya" target="_blank" rel="noopener noreferrer" className="bg-white/10 hover:bg-white/20 border border-white/10 text-white px-7 py-3 rounded-full text-[11px] font-extrabold uppercase tracking-widest transition-all backdrop-blur-md flex items-center gap-2 active:scale-95">
                   <span>Donasi via Saweria</span>
                   <i className="ph-bold ph-arrow-up-right text-yellow-400 text-sm"></i>
               </a>
