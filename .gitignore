@@ -2,12 +2,14 @@
 node_modules/
 npm-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # 🏗️ Build Outputs (Vite & Cloudflare)
 dist/
 build/
 out/
 frontend/dist/
+dist-ssr/
 
 # ☁️ Cloudflare & Wrangler (PENTING: Jangan upload database lokal & rahasia)
 .wrangler/
@@ -23,8 +25,14 @@ frontend/dist/
 *.sqlite3
 *.db
 
+seed.sql
+seed_*.sql
+
 # 💻 Editor & OS Hidden Files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+alkitab/
+*.csv
