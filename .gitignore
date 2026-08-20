@@ -1,38 +1,38 @@
-# 📦 Dependencies
+# 📦 Dependencies (Node.js)
 node_modules/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# 🏗️ Build Outputs
+# 🏗️ Build Outputs (Vite & Cloudflare)
 dist/
 build/
 out/
 frontend/dist/
 dist-ssr/
 
-# ☁️ Cloudflare & Secrets
+# ☁️ Cloudflare & Wrangler (PENTING: Jangan upload database lokal & rahasia)
 .wrangler/
 .dev.vars
-.dev.vars.*
-.env
-.env.*
-!.env.example
-!.dev.vars.example
 
-# 🗄️ Database & File Eksekusi Berat
+# 🔐 Environment Variables & Secrets
+.env
+.env.local
+.env.*
+
+# 🗄️ Database Lokal
 *.sqlite
 *.sqlite3
 *.db
-*.sql
-*.csv
-*.epub
-*.zip
-*.tar.gz
-alkitab/
 
-# 💻 Editor & OS Files
+seed.sql
+seed_*.sql
+
+# 💻 Editor & OS Hidden Files
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+alkitab/
+*.csv
