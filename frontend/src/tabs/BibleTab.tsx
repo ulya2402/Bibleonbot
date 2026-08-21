@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { BibleVersion } from '../types/bible';
 
 interface BibleTabProps {
@@ -43,6 +43,29 @@ export default function BibleTab({
   const [verseSearch, setVerseSearch] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg?.BackButton) return;
+
+    const handleBackClick = () => {
+      setIsSearchOpen(false);
+      setVerseSearch('');
+    };
+
+    if (isSearchOpen) {
+      tg.BackButton.show();
+      tg.onEvent('backButtonClicked', handleBackClick);
+    } else {
+      tg.BackButton.hide();
+      tg.offEvent('backButtonClicked', handleBackClick);
+    }
+
+    return () => {
+      tg.BackButton.hide();
+      tg.offEvent('backButtonClicked', handleBackClick);
+    };
+  }, [isSearchOpen]);
+
   const COLOR_MAP: Record<string, string> = {
     'yellow': 'bg-[#fef08a]/70 text-yellow-950 rounded-md px-1',
     'green': 'bg-[#bbf7d0]/70 text-green-950 rounded-md px-1',
@@ -54,12 +77,13 @@ export default function BibleTab({
   const renderVerseContent = (rawText: string) => {
     const textWithoutPilcrow = rawText.replace(/^¶\s*/, '').replace(/¶\s*/g, '');
     const lines = textWithoutPilcrow.split(/\r?\n/);
-
+    
     return lines.map((line, lineIdx) => {
       const parts = line.split(/(\{[^}]+\}|\[[^\]]+\]|\([^\)]+\)|G\d+|H\d+|[A-Z]-[A-Z0-9-]+| )/g);
-
+      
       const parsedLine = parts.map((part: string, index: number) => {
         if (!part) return null;
+
         if (part === ' ') {
           return <span key={index} className="inline-block w-1 select-none"> </span>;
         }
@@ -138,14 +162,22 @@ export default function BibleTab({
   const isScopeMismatch = currentVersion.testamentScope === 'NT' && currentBook.test === 'PL';
 
   return (
-    <div className="animate-fadeIn h-full flex flex-col">
-      <div className="sticky top-0 z-30 bg-[#fafafa]/90 backdrop-blur-md px-5 pb-3 pt-1 border-b border-gray-100">
+    <div className="relative">
+      <div 
+        className="sticky top-0 z-30 border-b border-gray-200/70 px-5 pb-3 transition-all duration-200 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]"
+        style={{
+          paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
+          backgroundColor: 'rgba(250, 250, 250, 0.72)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+        }}
+      >
         <div className="flex items-center justify-center gap-1.5 max-w-[400px] mx-auto w-full">
           <button
             onClick={goToPrevChapter}
             disabled={!canGoPrev}
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
-              !canGoPrev ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-gray-200/80 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
+              !canGoPrev ? 'opacity-30 pointer-events-none' : 'hover:bg-white'
             }`}
           >
             <i className="ph-bold ph-caret-left text-sm"></i>
@@ -153,7 +185,7 @@ export default function BibleTab({
 
           <button
             onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900/95 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-900"
           >
             <span className="truncate max-w-[130px]">{currentBook.name} {currentChapter}</span>
             <i className="ph-bold ph-caret-down text-gray-400 text-xs"></i>
@@ -161,7 +193,7 @@ export default function BibleTab({
 
           <button
             onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-white text-gray-800 border border-gray-200 rounded-full shadow-sm text-[12px] font-bold transition active:scale-95 shrink-0 hover:border-gray-300"
+            className="flex items-center gap-1 px-3 py-1.5 bg-white/90 text-gray-800 border border-gray-200/80 rounded-full shadow-sm text-[12px] font-bold transition active:scale-95 shrink-0 hover:border-gray-300"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>{currentVersion.shortName}</span>
@@ -171,8 +203,8 @@ export default function BibleTab({
           <button
             onClick={goToNextChapter}
             disabled={!canGoNext}
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
-              !canGoNext ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-gray-200/80 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
+              !canGoNext ? 'opacity-30 pointer-events-none' : 'hover:bg-white'
             }`}
           >
             <i className="ph-bold ph-caret-right text-sm"></i>
@@ -181,7 +213,7 @@ export default function BibleTab({
           <button
             onClick={() => setIsSearchOpen(prev => !prev)}
             className={`w-8 h-8 flex items-center justify-center rounded-full border shadow-sm transition active:scale-90 shrink-0 ml-1 ${
-              isSearchOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              isSearchOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white/90 text-gray-600 border-gray-200/80 hover:bg-white'
             }`}
           >
             <i className="ph-bold ph-magnifying-glass text-xs"></i>
@@ -189,16 +221,22 @@ export default function BibleTab({
         </div>
 
         {isSearchOpen && (
-          <div className="mt-2.5 max-w-[400px] mx-auto animate-fadeIn">
-            <div className="relative">
+          <div className="mt-2.5 max-w-[400px] mx-auto animate-fadeIn flex items-center gap-2">
+            <div className="relative flex-1">
               <i className="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
               <input
                 type="text"
-                placeholder="Cari di pasal ini..."
+                placeholder="Cari ayat di pasal ini..."
                 value={verseSearch}
                 onChange={(e) => setVerseSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsSearchOpen(false);
+                    setVerseSearch('');
+                  }
+                }}
                 autoFocus
-                className="w-full bg-white border border-gray-200 rounded-xl py-1.5 pl-8 pr-7 text-[12px] font-medium text-gray-800 focus:outline-none focus:border-gray-900 transition shadow-sm"
+                className="w-full bg-white/90 border border-gray-200/80 rounded-xl py-2 pl-8 pr-7 text-[12px] font-medium text-gray-800 focus:outline-none focus:border-gray-900 transition shadow-sm"
               />
               {verseSearch && (
                 <button onClick={() => setVerseSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -206,11 +244,20 @@ export default function BibleTab({
                 </button>
               )}
             </div>
+            <button
+              onClick={() => {
+                setIsSearchOpen(false);
+                setVerseSearch('');
+              }}
+              className="text-[12px] font-bold text-gray-500 hover:text-gray-900 px-2 py-1.5 rounded-lg transition active:scale-95 shrink-0"
+            >
+              Batal
+            </button>
           </div>
         )}
       </div>
 
-      <div className="flex-1 px-5 pt-3 pb-10">
+      <div className="flex-1 px-5 pt-3 pb-10 animate-fadeIn">
         <div className="space-y-1">
           {isLoadingBible ? (
             <div className="animate-pulse space-y-5 py-2 mt-4">
@@ -254,6 +301,7 @@ export default function BibleTab({
                 String(sv.chapter) === String(currentChapter) &&
                 String(sv.verse) === String(verseData.verse)
               );
+
               const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
               const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
 
@@ -297,6 +345,7 @@ export default function BibleTab({
                         </button>
                       )}
                     </div>
+
                     <span className={`text-[15px] leading-relaxed font-medium flex-1 ${
                       selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'
                     } ${highlightClass}`}>

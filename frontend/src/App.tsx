@@ -83,13 +83,11 @@ export default function App() {
   const [noteInput, setNoteInput] = useState('');
   const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
   const [viewingNote, setViewingNote] = useState<any>(null);
-  
   const [lastColor, setLastColor] = useState(localStorage.getItem('bible_last_color') || 'yellow');
 
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
   const mainRef = useRef<HTMLElement | null>(null);
-
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMainScroll = (e: UIEvent<HTMLElement>) => {
@@ -103,7 +101,6 @@ export default function App() {
     } else if (scrollDifference < -10) {
       setIsNavVisible(true);
     }
-
     lastScrollY.current = currentScrollY;
   };
 
@@ -352,13 +349,19 @@ export default function App() {
 
   return (
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
-      <div className="fixed top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}></div>
+      {activeTab !== 'bible' && (
+        <div 
+          className="fixed top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" 
+          style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
+        />
+      )}
+
       <main 
         ref={mainRef}
         onScroll={handleMainScroll}
         className="flex-1 scroll-area no-scrollbar relative" 
         style={{ 
-          paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
+          paddingTop: activeTab === 'bible' ? 0 : 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
           paddingBottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 7rem)'
         }}
       >
