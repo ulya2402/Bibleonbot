@@ -175,6 +175,14 @@ export default function App() {
   useEffect(() => { fetchSavedData(); }, [userId, activeTab]);
 
   useEffect(() => {
+    if (currentVersion.testamentScope === 'NT' && currentBook.test === 'PL') {
+      const defaultNTBook = BIBLE_BOOKS.find(b => b.test === 'PB') || BIBLE_BOOKS[39];
+      setCurrentBook(defaultNTBook);
+      setCurrentChapter(1);
+    }
+  }, [currentVersion]);
+
+  useEffect(() => {
     const fetchBibleVerses = async () => {
       setIsLoadingBible(true); setBibleVerses([]); 
       try {
@@ -247,12 +255,12 @@ export default function App() {
         const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
 
         const payload = {
-          id: existing?.id, 
+          id: existing?.id,
           user_id: String(userId),
           book: String(currentBook.name),
           chapter: Number(currentChapter),
           verse: Number(v.verse),
-          content: String(v.content),
+          content: String(v.content).replace(/^¶\s*/, ''),
           color: String(finalColor),
           note: String(finalNote)
         };
@@ -312,7 +320,35 @@ export default function App() {
     if (mainRef.current) mainRef.current.scrollTop = 0;
   };
 
-  const filteredBooks = BIBLE_BOOKS.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const availableBooks = currentVersion.testamentScope === 'NT'
+    ? BIBLE_BOOKS.filter(b => b.test === 'PB')
+    : BIBLE_BOOKS;
+
+  const currentBookIndex = availableBooks.findIndex(b => b.id === currentBook.id);
+  const canGoPrev = currentChapter > 1 || currentBookIndex > 0;
+  const canGoNext = currentChapter < currentBook.chapters || currentBookIndex < availableBooks.length - 1;
+
+  const goToPrevChapter = () => {
+    if (currentChapter > 1) {
+      setCurrentChapter(prev => prev - 1);
+    } else if (currentBookIndex > 0) {
+      const prevBook = availableBooks[currentBookIndex - 1];
+      setCurrentBook(prevBook);
+      setCurrentChapter(prevBook.chapters);
+    }
+  };
+
+  const goToNextChapter = () => {
+    if (currentChapter < currentBook.chapters) {
+      setCurrentChapter(prev => prev + 1);
+    } else if (currentBookIndex < availableBooks.length - 1) {
+      const nextBook = availableBooks[currentBookIndex + 1];
+      setCurrentBook(nextBook);
+      setCurrentChapter(1);
+    }
+  };
+
+  const filteredBooks = availableBooks.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
@@ -327,7 +363,29 @@ export default function App() {
         }}
       >
         {activeTab === 'home' && <HomeTab dailyVerse={dailyVerse} communities={communities} channels={channels} news={news} userName={userName} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
-        {activeTab === 'bible' && <BibleTab currentBook={currentBook} currentChapter={currentChapter} currentVersion={currentVersion} setSelectorStep={setSelectorStep} setIsSelectorOpen={setIsSelectorOpen} isLoadingBible={isLoadingBible} bibleVerses={bibleVerses} savedVerses={savedVerses} selectedVerses={selectedVerses} handleVerseSelect={handleVerseSelect} handleTouchStart={handleTouchStart} handleTouchEnd={handleTouchEnd} setViewingNote={setViewingNote} />}
+        
+        {activeTab === 'bible' && (
+          <BibleTab
+            currentBook={currentBook}
+            currentChapter={currentChapter}
+            currentVersion={currentVersion}
+            setSelectorStep={setSelectorStep}
+            setIsSelectorOpen={setIsSelectorOpen}
+            isLoadingBible={isLoadingBible}
+            bibleVerses={bibleVerses}
+            savedVerses={savedVerses}
+            selectedVerses={selectedVerses}
+            handleVerseSelect={handleVerseSelect}
+            handleTouchStart={handleTouchStart}
+            handleTouchEnd={handleTouchEnd}
+            setViewingNote={setViewingNote}
+            goToPrevChapter={goToPrevChapter}
+            goToNextChapter={goToNextChapter}
+            canGoPrev={canGoPrev}
+            canGoNext={canGoNext}
+          />
+        )}
+
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
         {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
@@ -391,19 +449,16 @@ export default function App() {
                 </div>
               ) : selectorStep === 'book' ? (
                 <div className="space-y-6">
-                  {filteredBooks.filter(b => b.test === 'PL').length > 0 && (
+                  {currentVersion.testamentScope !== 'NT' && filteredBooks.filter(b => b.test === 'PL').length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-3 px-1">
                         <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Perjanjian Lama</h4>
-                        {currentVersion.testamentScope === 'NT' && (
-                          <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Tidak tersedia di {currentVersion.shortName}</span>
-                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         {filteredBooks.filter(b => b.test === 'PL').map((book) => (
-                          <button 
-                            key={book.id} 
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} 
+                          <button
+                            key={book.id}
+                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
                             className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
                           >
                             {book.name}
@@ -459,12 +514,45 @@ export default function App() {
       )}
 
       {viewingNote && (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-900/60 p-5 animate-[fadeIn_0.2s_ease-out] note-modal-box">
-          <div className="bg-white w-full max-w-[400px] rounded-[1.5rem] p-6 shadow-2xl relative">
-            <button onClick={() => setViewingNote(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition"><i className="ph-bold ph-x text-sm"></i></button>
-            <div className="flex items-center gap-2 mb-4 text-gray-400"><i className="ph-fill ph-notebook text-xl"></i><span className="text-[10px] font-extrabold uppercase tracking-widest">{viewingNote.book} {viewingNote.chapter}:{viewingNote.verse}</span></div>
-            <p className="text-[14px] text-gray-800 font-medium leading-relaxed mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100">"{viewingNote.content}"</p>
-            <div className="border-l-[3px] border-gray-900 pl-4 py-1"><p className="text-[14px] text-gray-900 leading-relaxed font-semibold italic">{viewingNote.note}</p></div>
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-950/60 p-4 animate-[fadeIn_0.15s_ease-out] note-modal-box">
+          <div className="bg-white w-full max-w-[420px] rounded-[1.75rem] p-5 shadow-2xl relative border border-gray-100">
+            <div className="flex justify-between items-center mb-3.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200/60">
+                  <i className="ph-fill ph-note-pencil text-xs"></i>
+                </div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-gray-700">
+                  {viewingNote.book} {viewingNote.chapter}:{viewingNote.verse}
+                </span>
+              </div>
+              <button onClick={() => setViewingNote(null)} className="w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
+                <i className="ph-bold ph-x text-xs"></i>
+              </button>
+            </div>
+
+            <div className="bg-gray-50/80 rounded-xl p-3 border border-gray-200/70 mb-3.5">
+              <p className="text-[13px] text-gray-600 font-normal leading-relaxed">
+                "{viewingNote.content}"
+              </p>
+            </div>
+
+            <div className="border-l-2 border-amber-500 pl-3 py-1 mb-4">
+              <p className="text-[13.5px] text-gray-900 leading-relaxed font-semibold">
+                {viewingNote.note}
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`Catatan (${viewingNote.book} ${viewingNote.chapter}:${viewingNote.verse}):\n"${viewingNote.content}"\n\nRenungan:\n${viewingNote.note}`);
+                triggerAction('Catatan disalin!');
+                setViewingNote(null);
+              }}
+              className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-[12px] font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <i className="ph-bold ph-copy text-sm"></i>
+              <span>Salin Catatan</span>
+            </button>
           </div>
         </div>
       )}

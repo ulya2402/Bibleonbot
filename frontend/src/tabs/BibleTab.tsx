@@ -15,118 +15,202 @@ interface BibleTabProps {
   handleTouchStart: (id: number) => void;
   handleTouchEnd: () => void;
   setViewingNote: (note: any) => void;
+  goToPrevChapter: () => void;
+  goToNextChapter: () => void;
+  canGoPrev: boolean;
+  canGoNext: boolean;
 }
 
-export default function BibleTab({ 
-  currentBook, 
+export default function BibleTab({
+  currentBook,
   currentChapter,
   currentVersion,
-  setSelectorStep, 
+  setSelectorStep,
   setIsSelectorOpen,
-  isLoadingBible, 
-  bibleVerses, 
+  isLoadingBible,
+  bibleVerses,
   savedVerses,
-  selectedVerses, 
-  handleVerseSelect, 
-  handleTouchStart, 
+  selectedVerses,
+  handleVerseSelect,
+  handleTouchStart,
   handleTouchEnd,
-  setViewingNote
+  setViewingNote,
+  goToPrevChapter,
+  goToNextChapter,
+  canGoPrev,
+  canGoNext
 }: BibleTabProps) {
-
   const [verseSearch, setVerseSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const COLOR_MAP: Record<string, string> = {
-    'yellow': 'bg-[#fef08a]/60 text-yellow-900 rounded-md px-1',
-    'green': 'bg-[#bbf7d0]/60 text-green-900 rounded-md px-1',
-    'blue': 'bg-[#bfdbfe]/60 text-blue-900 rounded-md px-1',
-    'pink': 'bg-[#fbcfe8]/60 text-pink-900 rounded-md px-1',
-    'purple': 'bg-[#e9d5ff]/60 text-purple-900 rounded-md px-1',
+    'yellow': 'bg-[#fef08a]/70 text-yellow-950 rounded-md px-1',
+    'green': 'bg-[#bbf7d0]/70 text-green-950 rounded-md px-1',
+    'blue': 'bg-[#bfdbfe]/70 text-blue-950 rounded-md px-1',
+    'pink': 'bg-[#fbcfe8]/70 text-pink-950 rounded-md px-1',
+    'purple': 'bg-[#e9d5ff]/70 text-purple-950 rounded-md px-1',
   };
 
-  const renderVerseContent = (text: string) => {
-    const parts = text.split(/(\{[^}]+\}|\[[^\]]+\]|\([^\)]+\)|G\d+|H\d+|[A-Z]-[A-Z0-9-]+|¶)/g);
-    return parts.map((part: string, index: number) => {
-      if (!part) return null;
-      if (part === '¶') {
-        return (
-          <span key={index} className="inline-block text-gray-400 font-bold mr-1 select-none">
-            ¶
-          </span>
-        );
-      }
-      if (part.startsWith('{') && part.endsWith('}')) {
-        return (
-          <span key={index} className="inline-block text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded mx-0.5 align-middle border border-emerald-100">
-            {part.replace(/[{}]/g, '')}
-          </span>
-        );
-      }
-      if (part.startsWith('[') || part.startsWith('(')) {
-        return (
-          <span key={index} className="inline-block text-[11px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md mx-1 align-middle opacity-90">
-            {part}
-          </span>
-        );
-      }
-      if (/^(G|H)\d+$/.test(part)) {
-        return (
-          <span key={index} className="inline-block text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded mx-0.5 align-middle">
-            {part}
-          </span>
-        );
-      }
-      if (/^[A-Z]-[A-Z0-9-]+$/.test(part)) {
-        return (
-          <span key={index} className="inline-block text-[9px] font-medium text-purple-700 bg-purple-50 px-1 py-0.2 rounded mx-0.5 align-middle">
-            {part}
-          </span>
-        );
-      }
-      return <span key={index}>{part}</span>;
+  const renderVerseContent = (rawText: string) => {
+    const textWithoutPilcrow = rawText.replace(/^¶\s*/, '').replace(/¶\s*/g, '');
+    const lines = textWithoutPilcrow.split(/\r?\n/);
+
+    return lines.map((line, lineIdx) => {
+      const parts = line.split(/(\{[^}]+\}|\[[^\]]+\]|\([^\)]+\)|G\d+|H\d+|[A-Z]-[A-Z0-9-]+| )/g);
+
+      const parsedLine = parts.map((part: string, index: number) => {
+        if (!part) return null;
+        if (part === ' ') {
+          return <span key={index} className="inline-block w-1 select-none"> </span>;
+        }
+
+        if (part.startsWith('{') && part.endsWith('}')) {
+          const content = part.replace(/[{}]/g, '');
+          const isStrong = /^\(?([GH]\d+)\)?$/.test(content);
+          return (
+            <span
+              key={index}
+              className={`inline-flex items-center text-[9px] font-mono select-none mx-0.5 px-1 py-0.2 rounded border align-baseline ${
+                isStrong
+                  ? 'text-emerald-700 bg-emerald-50/90 border-emerald-200'
+                  : 'text-purple-700 bg-purple-50/90 border-purple-200'
+              }`}
+            >
+              {content}
+            </span>
+          );
+        }
+
+        if (part.startsWith('[') && part.endsWith(']')) {
+          const content = part.slice(1, -1);
+          return (
+            <span key={index} className="italic text-gray-600 font-normal">
+              {content}
+            </span>
+          );
+        }
+
+        if (part.startsWith('(') && part.endsWith(')')) {
+          return (
+            <span key={index} className="text-gray-500 text-[12px] font-normal">
+              {part}
+            </span>
+          );
+        }
+
+        if (/^(G|H)\d+$/.test(part)) {
+          return (
+            <span
+              key={index}
+              className="inline-flex items-center text-[9px] font-mono text-emerald-700 bg-emerald-50/90 border border-emerald-200 select-none mx-0.5 px-1 py-0.2 rounded align-baseline"
+            >
+              {part}
+            </span>
+          );
+        }
+
+        if (/^[A-Z]-[A-Z0-9-]+$/.test(part)) {
+          return (
+            <span
+              key={index}
+              className="inline-flex items-center text-[9px] font-mono text-purple-700 bg-purple-50/90 border border-purple-200 select-none mx-0.5 px-1 py-0.2 rounded align-baseline"
+            >
+              {part}
+            </span>
+          );
+        }
+
+        return <span key={index}>{part}</span>;
+      });
+
+      return (
+        <span key={lineIdx} className={lineIdx > 0 ? 'block mt-2 pl-2.5 border-l-2 border-gray-200' : ''}>
+          {parsedLine}
+        </span>
+      );
     });
   };
 
-  const filteredVerses = bibleVerses.filter((v: any) => 
+  const filteredVerses = bibleVerses.filter((v: any) =>
     v.content.toLowerCase().includes(verseSearch.toLowerCase()) || String(v.verse) === verseSearch
   );
 
   const isScopeMismatch = currentVersion.testamentScope === 'NT' && currentBook.test === 'PL';
 
   return (
-    <div className="animate-fadeIn h-full flex flex-col pt-2">
-      <div className="flex-none px-5 pb-4 flex flex-col gap-2.5">
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0"
+    <div className="animate-fadeIn h-full flex flex-col">
+      <div className="sticky top-0 z-30 bg-[#fafafa]/90 backdrop-blur-md px-5 pb-3 pt-1 border-b border-gray-100">
+        <div className="flex items-center justify-center gap-1.5 max-w-[400px] mx-auto w-full">
+          <button
+            onClick={goToPrevChapter}
+            disabled={!canGoPrev}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
+              !canGoPrev ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
+            }`}
           >
-            <span>{currentBook.name} {currentChapter}</span>
-            <i className="ph-bold ph-caret-down text-gray-400"></i>
+            <i className="ph-bold ph-caret-left text-sm"></i>
           </button>
 
-          <button 
-            onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white text-gray-800 border border-gray-200 rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0 hover:border-gray-400"
+          <button
+            onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>{currentVersion.shortName}</span>
+            <span className="truncate max-w-[130px]">{currentBook.name} {currentChapter}</span>
             <i className="ph-bold ph-caret-down text-gray-400 text-xs"></i>
           </button>
 
-          <div className="relative flex-1 min-w-[120px]">
-            <i className="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input 
-              type="text" 
-              placeholder="Cari..." 
-              value={verseSearch}
-              onChange={(e) => setVerseSearch(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-full py-2 pl-8 pr-3 text-[12px] font-medium text-gray-800 focus:outline-none focus:border-gray-400 transition shadow-sm" 
-            />
-          </div>
+          <button
+            onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
+            className="flex items-center gap-1 px-3 py-1.5 bg-white text-gray-800 border border-gray-200 rounded-full shadow-sm text-[12px] font-bold transition active:scale-95 shrink-0 hover:border-gray-300"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>{currentVersion.shortName}</span>
+            <i className="ph-bold ph-caret-down text-gray-400 text-[10px]"></i>
+          </button>
+
+          <button
+            onClick={goToNextChapter}
+            disabled={!canGoNext}
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
+              !canGoNext ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
+            }`}
+          >
+            <i className="ph-bold ph-caret-right text-sm"></i>
+          </button>
+
+          <button
+            onClick={() => setIsSearchOpen(prev => !prev)}
+            className={`w-8 h-8 flex items-center justify-center rounded-full border shadow-sm transition active:scale-90 shrink-0 ml-1 ${
+              isSearchOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <i className="ph-bold ph-magnifying-glass text-xs"></i>
+          </button>
         </div>
+
+        {isSearchOpen && (
+          <div className="mt-2.5 max-w-[400px] mx-auto animate-fadeIn">
+            <div className="relative">
+              <i className="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+              <input
+                type="text"
+                placeholder="Cari di pasal ini..."
+                value={verseSearch}
+                onChange={(e) => setVerseSearch(e.target.value)}
+                autoFocus
+                className="w-full bg-white border border-gray-200 rounded-xl py-1.5 pl-8 pr-7 text-[12px] font-medium text-gray-800 focus:outline-none focus:border-gray-900 transition shadow-sm"
+              />
+              {verseSearch && (
+                <button onClick={() => setVerseSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i className="ph-bold ph-x text-xs"></i>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 px-5 pb-10">
+      <div className="flex-1 px-5 pt-3 pb-10">
         <div className="space-y-1">
           {isLoadingBible ? (
             <div className="animate-pulse space-y-5 py-2 mt-4">
@@ -148,13 +232,13 @@ export default function BibleTab({
                 Versi ini hanya mencakup Perjanjian Baru (PB). Silakan pilih kitab di Perjanjian Baru atau ganti versi terjemahan.
               </p>
               <div className="flex justify-center gap-2 mt-4">
-                <button 
+                <button
                   onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
                   className="px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-bold transition active:scale-95"
                 >
                   Pilih Kitab PB
                 </button>
-                <button 
+                <button
                   onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
                   className="px-4 py-2 bg-gray-100 text-gray-800 rounded-xl text-xs font-bold transition active:scale-95"
                 >
@@ -164,42 +248,61 @@ export default function BibleTab({
             </div>
           ) : filteredVerses.length > 0 ? (
             filteredVerses.map((verseData: any) => {
-              const savedMatch = savedVerses.find((sv: any) => 
-                String(sv.book) === String(currentBook.name) && 
-                String(sv.chapter) === String(currentChapter) && 
+              const isParagraphStart = String(verseData.content).trim().startsWith('¶');
+              const savedMatch = savedVerses.find((sv: any) =>
+                String(sv.book) === String(currentBook.name) &&
+                String(sv.chapter) === String(currentChapter) &&
                 String(sv.verse) === String(verseData.verse)
               );
               const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
               const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
 
               return (
-                <div 
-                  key={verseData.id}
-                  onClick={() => handleVerseSelect(verseData.id)}
-                  onTouchStart={() => handleTouchStart(verseData.id)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchMove={handleTouchEnd}
-                  className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${selectedVerses.includes(verseData.id) ? 'bg-[#eceef2] scale-[0.98]' : 'bg-transparent hover:bg-white'}`}
-                >
-                  <div className="flex flex-col items-center gap-1.5 shrink-0 w-7 pt-[3px]">
-                    <span className={`text-[12px] font-extrabold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {verseData.verse}
+                <div key={verseData.id} className="space-y-1">
+                  {isParagraphStart && (
+                    <div className="pt-4 pb-1.5 flex items-center gap-2 select-none">
+                      <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
+                      <div className="h-px bg-gray-200/80 flex-1"></div>
+                    </div>
+                  )}
+
+                  <div
+                    onClick={() => handleVerseSelect(verseData.id)}
+                    onTouchStart={() => handleTouchStart(verseData.id)}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchMove={handleTouchEnd}
+                    className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${
+                      selectedVerses.includes(verseData.id) ? 'bg-[#eceef2] scale-[0.98]' : 'bg-transparent hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-[2px]">
+                      <span className={`text-[12px] font-extrabold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {verseData.verse}
+                      </span>
+                      {hasNote && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingNote({
+                              book: currentBook.name,
+                              chapter: currentChapter,
+                              verse: verseData.verse,
+                              content: verseData.content.replace(/^¶\s*/, ''),
+                              note: savedMatch.note
+                            });
+                          }}
+                          className="w-5 h-5 flex items-center justify-center bg-amber-50 text-amber-600 rounded-full hover:bg-amber-100 transition active:scale-90 border border-amber-200 shadow-xs"
+                        >
+                          <i className="ph-fill ph-note-pencil text-[10px]"></i>
+                        </button>
+                      )}
+                    </div>
+                    <span className={`text-[15px] leading-relaxed font-medium flex-1 ${
+                      selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'
+                    } ${highlightClass}`}>
+                      {renderVerseContent(verseData.content)}
                     </span>
-                    {hasNote && (
-                      <button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setViewingNote({ book: currentBook.name, chapter: currentChapter, verse: verseData.verse, content: verseData.content, note: savedMatch.note }); 
-                        }}
-                        className="w-6 h-6 flex items-center justify-center bg-yellow-100 text-yellow-600 rounded-full hover:bg-yellow-200 transition shadow-sm border border-yellow-200"
-                      >
-                        <i className="ph-fill ph-notebook text-[12px]"></i>
-                      </button>
-                    )}
                   </div>
-                  <span className={`text-[15px] leading-relaxed font-medium flex-1 ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'} ${highlightClass}`}>
-                    {renderVerseContent(verseData.content)}
-                  </span>
                 </div>
               );
             })
