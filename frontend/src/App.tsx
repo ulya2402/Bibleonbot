@@ -351,7 +351,7 @@ export default function App() {
     <div id="app-container" className="flex flex-col h-full bg-[#fafafa]">
       {activeTab !== 'bible' && (
         <div 
-          className="fixed top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" 
+          className="absolute top-0 left-0 right-0 bg-[#fafafa]/85 backdrop-blur-xl z-[60] pointer-events-none" 
           style={{ height: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)' }}
         />
       )}
@@ -394,8 +394,9 @@ export default function App() {
       </main>
 
       {isSelectorOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-end">
+        <div className="absolute inset-0 z-[100] flex flex-col justify-end">
           <div className="absolute inset-0 bg-gray-900/60 transition-opacity" onClick={() => setIsSelectorOpen(false)}></div>
+          
           <div className="relative bg-white w-full max-w-[500px] mx-auto rounded-t-[1.5rem] h-[85vh] flex flex-col shadow-2xl animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0 bg-white rounded-t-[1.5rem]">
               {selectorStep === 'chapter' ? (
@@ -408,11 +409,13 @@ export default function App() {
               </h3>
               <button onClick={() => setIsSelectorOpen(false)} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-full transition"><i className="ph-bold ph-x text-xl"></i></button>
             </div>
+
             {selectorStep === 'book' && (
               <div className="px-5 py-3 border-b border-gray-100 shrink-0 bg-white">
                 <div className="relative"><i className="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" placeholder="Cari kitab (cth: Yohanes)..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-gray-50 rounded-xl py-3 pl-10 pr-4 text-[13px] font-medium focus:outline-none focus:ring-1 focus:ring-gray-300 transition" /></div>
               </div>
             )}
+
             <div className="flex-1 overflow-y-auto p-5 scroll-area no-scrollbar bg-[#fafafa]">
               {selectorStep === 'version' ? (
                 <div className="space-y-6">
@@ -426,10 +429,10 @@ export default function App() {
                         {group.versions.map((ver) => {
                           const isSelected = currentVersion.id === ver.id;
                           return (
-                            <button 
-                              key={ver.id} 
-                              onClick={() => handleSelectVersion(ver)} 
-                              className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${isSelected ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-white text-gray-800 border-gray-100 hover:border-gray-300 shadow-sm'}`}
+                            <button
+                               key={ver.id}
+                               onClick={() => handleSelectVersion(ver)}
+                               className={`w-full p-4 rounded-2xl text-left transition border flex justify-between items-center ${isSelected ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'bg-white text-gray-800 border-gray-100 hover:border-gray-300 shadow-sm'}`}
                             >
                               <div className="pr-3">
                                 <div className="flex items-center gap-2 mb-1">
@@ -470,15 +473,16 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
                   {filteredBooks.filter(b => b.test === 'PB').length > 0 && (
                     <div>
                       <h4 className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mb-3 pl-1">Perjanjian Baru</h4>
                       <div className="grid grid-cols-2 gap-2">
                         {filteredBooks.filter(b => b.test === 'PB').map((book) => (
-                          <button 
-                            key={book.id} 
-                            onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }} 
-                            className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                          <button
+                             key={book.id}
+                             onClick={() => { setTempSelectedBook(book); setSelectorStep('chapter'); setSearchQuery(''); }}
+                             className={`p-3 rounded-xl text-left font-bold text-[13px] transition border ${currentBook.id === book.id ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
                           >
                             {book.name}
                           </button>
@@ -486,15 +490,16 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
                   {filteredBooks.length === 0 && <p className="text-center text-sm text-gray-400 py-4">Kitab tidak ditemukan.</p>}
                 </div>
               ) : (
                 <div className="grid grid-cols-5 gap-2">
                   {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
-                    <button 
-                      key={ch} 
-                      onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }} 
-                      className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
+                    <button
+                       key={ch}
+                       onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }}
+                       className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
                     >
                       {ch}
                     </button>
@@ -507,7 +512,7 @@ export default function App() {
       )}
 
       {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-gray-900/60 p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
+        <div className="absolute inset-0 z-[120] flex items-end sm:items-center justify-center bg-gray-900/60 p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
           <div className="bg-white w-full max-w-[500px] max-h-[90vh] overflow-y-auto rounded-t-[1.5rem] sm:rounded-[1.5rem] p-6 shadow-2xl note-modal-box">
             <div className="flex justify-between items-center mb-5"><h3 className="font-extrabold text-lg text-gray-900">Catatan Renungan</h3><button onClick={() => setIsNoteModalOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 transition hover:bg-gray-200"><i className="ph-bold ph-x text-sm"></i></button></div>
             <textarea value={noteInput} onChange={(e) => setNoteInput(e.target.value)} className="w-full bg-[#fafafa] border border-gray-200 rounded-2xl p-4 text-[14px] leading-relaxed text-gray-800 focus:outline-none focus:border-gray-400 focus:ring-1 focus:ring-gray-400 transition resize-none h-40 mb-5 shadow-inner" placeholder="Ketik renungan atau pemahaman Anda di sini..."></textarea>
@@ -517,7 +522,7 @@ export default function App() {
       )}
 
       {viewingNote && (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-gray-950/60 p-4 animate-[fadeIn_0.15s_ease-out] note-modal-box">
+        <div className="absolute inset-0 z-[140] flex items-center justify-center bg-gray-950/60 p-4 animate-[fadeIn_0.15s_ease-out] note-modal-box">
           <div className="bg-white w-full max-w-[420px] rounded-[1.75rem] p-5 shadow-2xl relative border border-gray-100">
             <div className="flex justify-between items-center mb-3.5">
               <div className="flex items-center gap-2">
@@ -560,7 +565,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={`action-menu fixed left-5 right-5 max-w-[400px] mx-auto bg-gray-900 text-white rounded-[1.25rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-24 pointer-events-none'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <div className={`action-menu absolute left-5 right-5 max-w-[380px] mx-auto bg-gray-900 text-white rounded-[1.25rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center z-50 border border-gray-700 transition-all duration-300 ${selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-24 pointer-events-none'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         {!isColorPaletteOpen ? (
           <div className="flex gap-1 w-full justify-between pr-2">
             <div className="flex gap-1">
@@ -581,13 +586,13 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`fixed left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
         <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
         <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>
       </nav>
 
-      <div className={`fixed left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} style={{ top: showToast ? 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 1.5rem)' : '-100px' }}>
+      <div className={`absolute left-1/2 -translate-x-1/2 bg-[#1a1d23] text-white px-6 py-3.5 rounded-full text-[13px] font-bold shadow-2xl transition-all duration-300 z-[150] flex items-center gap-2 border border-gray-800 ${showToast ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`} style={{ top: showToast ? 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 1.5rem)' : '-100px' }}>
         <i className="ph-fill ph-check-circle text-green-400 text-lg"></i><span>{toastMsg}</span>
       </div>
     </div>

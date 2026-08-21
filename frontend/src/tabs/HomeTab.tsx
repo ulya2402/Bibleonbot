@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 export default function HomeTab({ dailyVerse, communities, channels, news, userName, isAdmin, setActiveTab }: any) {
   const [visibleComms, setVisibleComms] = useState(5);
+  const [imgError, setImgError] = useState(false);
   const [visibleNews, setVisibleNews] = useState(5);
 
   const hour = new Date().getHours();
@@ -50,7 +51,18 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
       <div className="flex justify-between items-start px-1 mb-2">
           <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                  <img src="https://i.ibb.co/0VytPmL7/31399-removebg-preview.png" alt="Logo" className="w-5 h-5 object-contain opacity-80" />
+                  {!imgError ? (
+                    <img 
+                      src="/logo.png" 
+                      alt="Logo" 
+                      onError={() => setImgError(true)}
+                      className="w-5 h-5 object-contain shrink-0" 
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-md bg-gray-900 text-white flex items-center justify-center shrink-0">
+                      <i className="ph-fill ph-book-open text-[11px]"></i>
+                    </div>
+                  )}
                   <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-400">ALKITAB ID</span>
               </div>
               <h1 className="text-[26px] font-bold tracking-tight text-gray-900 leading-tight">
