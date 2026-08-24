@@ -67,11 +67,11 @@ export default function BibleTab({
   }, [isSearchOpen]);
 
   const COLOR_MAP: Record<string, string> = {
-    'yellow': 'bg-[#fef08a]/70 text-yellow-950 rounded-md px-1',
-    'green': 'bg-[#bbf7d0]/70 text-green-950 rounded-md px-1',
-    'blue': 'bg-[#bfdbfe]/70 text-blue-950 rounded-md px-1',
-    'pink': 'bg-[#fbcfe8]/70 text-pink-950 rounded-md px-1',
-    'purple': 'bg-[#e9d5ff]/70 text-purple-950 rounded-md px-1',
+    'yellow': 'bg-amber-100 text-amber-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'green': 'bg-emerald-100 text-emerald-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'blue': 'bg-sky-100 text-sky-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'pink': 'bg-rose-100 text-rose-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'purple': 'bg-purple-100 text-purple-950 px-1 py-0.5 rounded-md box-decoration-clone',
   };
 
   const renderVerseContent = (rawText: string) => {
@@ -164,10 +164,10 @@ export default function BibleTab({
   return (
     <div className="relative">
       <div 
-        className="sticky top-0 z-30 border-b border-gray-200/70 px-5 pb-3 transition-all duration-200 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]"
+        className="sticky top-0 z-30 px-5 pb-3 transition-all duration-200 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)]"
         style={{
           paddingTop: 'calc(max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px)) + 3rem)',
-          backgroundColor: 'rgba(250, 250, 250, 0.72)',
+          backgroundColor: 'rgba(250, 250, 250, 0.85)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)'
         }}
@@ -176,44 +176,40 @@ export default function BibleTab({
           <button
             onClick={goToPrevChapter}
             disabled={!canGoPrev}
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-gray-200/80 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
-              !canGoPrev ? 'opacity-30 pointer-events-none' : 'hover:bg-white'
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white text-gray-700 shadow-xs transition active:scale-90 shrink-0 ${
+              !canGoPrev ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
             }`}
           >
             <i className="ph-bold ph-caret-left text-sm"></i>
           </button>
-
           <button
             onClick={() => { setSelectorStep('book'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900/95 text-white rounded-full shadow-sm text-[13px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-900"
+            className="flex items-center gap-1.5 px-4 py-1.5 bg-gray-900 text-white rounded-full shadow-xs text-[13px] font-bold transition active:scale-95 shrink-0 hover:bg-black"
           >
             <span className="truncate max-w-[130px]">{currentBook.name} {currentChapter}</span>
             <i className="ph-bold ph-caret-down text-gray-400 text-xs"></i>
           </button>
-
           <button
             onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
-            className="flex items-center gap-1 px-3 py-1.5 bg-white/90 text-gray-800 border border-gray-200/80 rounded-full shadow-sm text-[12px] font-bold transition active:scale-95 shrink-0 hover:border-gray-300"
+            className="flex items-center gap-1 px-3 py-1.5 bg-white text-gray-800 rounded-full shadow-xs text-[12px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-50"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>{currentVersion.shortName}</span>
             <i className="ph-bold ph-caret-down text-gray-400 text-[10px]"></i>
           </button>
-
           <button
             onClick={goToNextChapter}
             disabled={!canGoNext}
-            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white/90 border border-gray-200/80 text-gray-700 shadow-sm transition active:scale-90 shrink-0 ${
-              !canGoNext ? 'opacity-30 pointer-events-none' : 'hover:bg-white'
+            className={`w-8 h-8 flex items-center justify-center rounded-full bg-white text-gray-700 shadow-xs transition active:scale-90 shrink-0 ${
+              !canGoNext ? 'opacity-30 pointer-events-none' : 'hover:bg-gray-50'
             }`}
           >
             <i className="ph-bold ph-caret-right text-sm"></i>
           </button>
-
           <button
             onClick={() => setIsSearchOpen(prev => !prev)}
-            className={`w-8 h-8 flex items-center justify-center rounded-full border shadow-sm transition active:scale-90 shrink-0 ml-1 ${
-              isSearchOpen ? 'bg-gray-900 text-white border-gray-900' : 'bg-white/90 text-gray-600 border-gray-200/80 hover:bg-white'
+            className={`w-8 h-8 flex items-center justify-center rounded-full shadow-xs transition active:scale-90 shrink-0 ml-1 ${
+              isSearchOpen ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
             }`}
           >
             <i className="ph-bold ph-magnifying-glass text-xs"></i>
@@ -236,7 +232,7 @@ export default function BibleTab({
                   }
                 }}
                 autoFocus
-                className="w-full bg-white/90 border border-gray-200/80 rounded-xl py-2 pl-8 pr-7 text-[12px] font-medium text-gray-800 focus:outline-none focus:border-gray-900 transition shadow-sm"
+                className="w-full bg-[#f4f5f7] rounded-xl py-2 pl-8 pr-7 text-[12px] font-medium text-gray-800 focus:outline-none focus:bg-[#eaedf2] transition"
               />
               {verseSearch && (
                 <button onClick={() => setVerseSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -319,12 +315,12 @@ export default function BibleTab({
                     onTouchStart={() => handleTouchStart(verseData.id)}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
-                    className={`verse-item p-3 rounded-xl cursor-pointer flex gap-3 transition-all ${
-                      selectedVerses.includes(verseData.id) ? 'bg-[#eceef2] scale-[0.98]' : 'bg-transparent hover:bg-white'
+                    className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-colors ${
+                      selectedVerses.includes(verseData.id) ? 'bg-[#eaedf2]' : 'bg-transparent hover:bg-gray-100/60'
                     }`}
                   >
-                    <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-[2px]">
-                      <span className={`text-[12px] font-extrabold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-0.5">
+                      <span className={`text-[12px] font-bold ${selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-400'}`}>
                         {verseData.verse}
                       </span>
                       {hasNote && (
@@ -335,20 +331,18 @@ export default function BibleTab({
                               book: currentBook.name,
                               chapter: currentChapter,
                               verse: verseData.verse,
-                              content: verseData.content.replace(/^¶\s*/, ''),
+                              content: verseData.content.replace(/^ \s*/, ''),
                               note: savedMatch.note
                             });
                           }}
-                          className="w-5 h-5 flex items-center justify-center bg-amber-50 text-amber-600 rounded-full hover:bg-amber-100 transition active:scale-90 border border-amber-200 shadow-xs"
+                          className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-700 transition active:scale-90"
+                          title="Lihat catatan"
                         >
-                          <i className="ph-fill ph-note-pencil text-[10px]"></i>
+                          <i className="ph-fill ph-notebook text-xs"></i>
                         </button>
                       )}
                     </div>
-
-                    <span className={`text-[15px] leading-relaxed font-medium flex-1 ${
-                      selectedVerses.includes(verseData.id) ? 'text-gray-900' : 'text-gray-800'
-                    } ${highlightClass}`}>
+                    <span className={`text-[15px] leading-relaxed font-normal flex-1 text-gray-800 ${highlightClass}`}>
                       {renderVerseContent(verseData.content)}
                     </span>
                   </div>
