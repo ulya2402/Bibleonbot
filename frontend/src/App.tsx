@@ -83,15 +83,31 @@ export default function App() {
   const [noteInput, setNoteInput] = useState('');
   const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
   const [viewingNote, setViewingNote] = useState<any>(null);
-  const [lastColor, setLastColor] = useState(localStorage.getItem('bible_last_color') || 'yellow');
-
+  const [recentColors, setRecentColors] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bible_recent_colors');
+      return saved ? JSON.parse(saved) : ['yellow', 'green', 'blue'];
+    } catch (e) {
+      return ['yellow', 'green', 'blue'];
+    }
+  });
   const [isNavVisible, setIsNavVisible] = useState(true);
   const lastScrollY = useRef(0);
   const mainRef = useRef<HTMLElement | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const colorHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isColorHeld = useRef(false);
+
+  const ALL_HIGHLIGHT_COLORS = [
+    { id: 'yellow', bg: 'bg-amber-300' },
+    { id: 'green', bg: 'bg-emerald-300' },
+    { id: 'blue', bg: 'bg-sky-300' },
+    { id: 'pink', bg: 'bg-rose-300' },
+    { id: 'purple', bg: 'bg-purple-300' },
+    { id: 'orange', bg: 'bg-orange-300' },
+    { id: 'teal', bg: 'bg-teal-300' },
+    { id: 'indigo', bg: 'bg-indigo-300' },
+  ];
 
   const handleMainScroll = (e: UIEvent<HTMLElement>) => {
     const currentScrollY = e.currentTarget.scrollTop;
@@ -172,7 +188,35 @@ export default function App() {
     return cleanupInsets;
   }, []);
 
-  useEffect(() => { fetchSavedData(); }, [userId, activeTab]);
+  useEffect(() => {
+    fetchSavedData();
+  }, [userId, activeTab]);
+
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg?.BackButton) return;
+
+    const handleBack = () => {
+      if (isColorPaletteOpen) {
+        setIsColorPaletteOpen(false);
+      } else if (selectedVerses.length > 0) {
+        setSelectedVerses([]);
+      }
+    };
+
+    if (isColorPaletteOpen || selectedVerses.length > 0) {
+      tg.BackButton.show();
+      tg.onEvent('backButtonClicked', handleBack);
+    } else {
+      tg.BackButton.hide();
+      tg.offEvent('backButtonClicked', handleBack);
+    }
+
+    return () => {
+      tg.BackButton.hide();
+      tg.offEvent('backButtonClicked', handleBack);
+    };
+  }, [isColorPaletteOpen, selectedVerses.length]);
 
   useEffect(() => {
     if (currentVersion.testamentScope === 'NT' && currentBook.test === 'PL') {
@@ -227,25 +271,28 @@ export default function App() {
     if (pressTimer.current) clearTimeout(pressTimer.current);
   };
 
-  const handleColorPressStart = () => {
+  const handleColorPressStart = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
     isColorHeld.current = false;
     colorHoldTimer.current = setTimeout(() => {
       isColorHeld.current = true;
       setIsColorPaletteOpen(true);
       if (navigator.vibrate) navigator.vibrate(40);
-    }, 350);
+    }, 300);
   };
 
-  const handleColorPressEnd = () => {
+  const handleColorPressEnd = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
     if (colorHoldTimer.current) clearTimeout(colorHoldTimer.current);
   };
 
-  const handleColorClick = () => {
+  const handleColorClick = (e: React.MouseEvent, colorId: string) => {
+    e.stopPropagation();
     if (isColorHeld.current) {
       isColorHeld.current = false;
       return;
     }
-    saveVerseData(lastColor, null);
+    saveVerseData(colorId, null);
   };
 
   const triggerAction = (msg: string) => {
@@ -271,11 +318,18 @@ export default function App() {
   const saveVerseData = async (colorParam: string | null, noteParam: string | null) => {
     const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
     if (selectedVerseData.length === 0) return;
+
     if (colorParam) {
-      setLastColor(colorParam);
-      localStorage.setItem('bible_last_color', colorParam);
+      setRecentColors(prev => {
+        const next = [colorParam, ...prev.filter(c => c !== colorParam)].slice(0, 3);
+        try { localStorage.setItem('bible_recent_colors', JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
     }
+
     const newSavedVerses = [...savedVerses];
+    const fetchPromises = [];
+
     try {
       for (const v of selectedVerseData) {
         const existingIndex = newSavedVerses.findIndex(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
@@ -293,26 +347,30 @@ export default function App() {
           color: String(finalColor),
           note: String(finalNote)
         };
+
         if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
         else newSavedVerses.push({ ...payload, id: Date.now() + Math.random() });
-        const response = await fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
 
-        if (!response.ok) {
-          triggerAction(`Gagal menghubungi server.`);
-          return;
-        }
+        fetchPromises.push(
+          fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+        );
       }
 
       setSavedVerses(newSavedVerses);
-      triggerAction(noteParam !== null ? 'Catatan tersimpan!' : 'Warna diterapkan!');
-      setIsNoteModalOpen(false);
+      triggerAction(noteParam !== null ? 'Catatan tersimpan!' : colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
+      
+      if (noteParam !== null) {
+        setIsNoteModalOpen(false);
+        setNoteInput('');
+        setSelectedVerses([]);
+      }
       setIsColorPaletteOpen(false);
-      setNoteInput('');
-      setSelectedVerses([]);
+
+      await Promise.all(fetchPromises);
     } catch (e: any) {
       triggerAction("Gagal menyambung ke server.");
     }
@@ -624,109 +682,161 @@ export default function App() {
       )}
 
       <div
-        className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-[390px] bg-[#181a1f]/95 backdrop-blur-md text-white rounded-2xl shadow-[0_15px_35px_-5px_rgba(0,0,0,0.35)] p-2 z-50 transition-all duration-200 ${
-          selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible translate-y-20 pointer-events-none'
+        onClick={(e) => e.stopPropagation()}
+        className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-1.75rem)] max-w-[430px] bg-[#1a1c22]/90 backdrop-blur-2xl text-white rounded-[2rem] shadow-[0_20px_50px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] p-2 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
         }`}
         style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.25rem)' }}
       >
         {!isColorPaletteOpen ? (
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-1">
-              <button
-                onClick={handleColorClick}
+              <div
                 onTouchStart={handleColorPressStart}
                 onTouchEnd={handleColorPressEnd}
                 onMouseDown={handleColorPressStart}
                 onMouseUp={handleColorPressEnd}
                 onMouseLeave={handleColorPressEnd}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/10 rounded-xl transition select-none active:scale-95"
+                className="flex items-center gap-1.5 bg-white/[0.07] hover:bg-white/[0.1] p-1.5 rounded-full transition-all duration-200 select-none"
               >
-                <div className={`w-3.5 h-3.5 rounded-full ring-2 ring-white/20 ${
-                  lastColor === 'yellow' ? 'bg-amber-300' :
-                  lastColor === 'green' ? 'bg-emerald-300' :
-                  lastColor === 'blue' ? 'bg-sky-300' :
-                  lastColor === 'pink' ? 'bg-rose-300' : 'bg-purple-300'
-                }`} />
-                <span className="text-[9px] font-bold tracking-wide mt-1 text-gray-300">Warna</span>
-              </button>
-
-              <button
-                onClick={() => setIsColorPaletteOpen(true)}
-                className="w-4 h-11 flex items-center justify-center text-gray-400 hover:text-white transition"
-              >
-                <i className="ph-bold ph-caret-right text-[10px]"></i>
-              </button>
-
-              {hasSelectedHighlight && (
+                {recentColors.map((colorId, idx) => {
+                  const colorObj = ALL_HIGHLIGHT_COLORS.find(c => c.id === colorId) || ALL_HIGHLIGHT_COLORS[0];
+                  const isLatest = idx === 0;
+                  return (
+                    <button
+                      key={colorId}
+                      onClick={(e) => handleColorClick(e, colorId)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 active:scale-75 hover:scale-115 relative ${
+                        isLatest ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1c22] shadow-[0_0_12px_rgba(255,255,255,0.3)]' : 'opacity-85 hover:opacity-100'
+                      }`}
+                      title={isLatest ? 'Warna Terakhir Digunakan' : undefined}
+                    >
+                      <div className={`w-5 h-5 rounded-full ${colorObj.bg} shadow-sm`} />
+                    </button>
+                  );
+                })}
                 <button
-                  onClick={() => saveVerseData('', null)}
-                  className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/10 rounded-xl transition text-rose-300 hover:text-rose-200"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsColorPaletteOpen(true);
+                  }}
+                  className="w-6 h-7 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-75"
+                  title="Pilihan Warna Lainnya"
+                >
+                  <i className="ph-bold ph-caret-right text-xs"></i>
+                </button>
+              </div>
+
+              <div
+                className={`overflow-hidden flex items-center transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  hasSelectedHighlight ? 'max-w-[56px] opacity-100 scale-100 translate-x-0' : 'max-w-0 opacity-0 scale-75 -translate-x-2 pointer-events-none'
+                }`}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveVerseData('', null);
+                  }}
+                  className="flex flex-col items-center justify-center w-11 h-11 hover:bg-rose-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-rose-300 hover:text-rose-200"
                   title="Hapus Warna"
                 >
-                  <i className="ph-bold ph-paint-brush-broad text-base"></i>
-                  <span className="text-[9px] font-bold tracking-wide mt-0.5">Hapus</span>
+                  <i className="ph-bold ph-prohibit text-lg"></i>
+                  <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Hapus</span>
                 </button>
-              )}
+              </div>
 
               <div className="w-px h-5 bg-white/10 mx-0.5"></div>
 
               <button
-                onClick={openNoteModal}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/10 rounded-xl transition text-gray-300 hover:text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNoteModal();
+                }}
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white"
               >
-                <i className="ph-bold ph-pencil-simple text-base"></i>
-                <span className="text-[9px] font-bold tracking-wide mt-0.5">Catat</span>
+                <i className="ph-bold ph-pencil-simple text-lg"></i>
+                <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Catat</span>
               </button>
 
               <button
-                onClick={handleCopy}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/10 rounded-xl transition text-gray-300 hover:text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy();
+                }}
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white"
               >
-                <i className="ph-bold ph-copy text-base"></i>
-                <span className="text-[9px] font-bold tracking-wide mt-0.5">Salin</span>
+                <i className="ph-bold ph-copy text-lg"></i>
+                <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Salin</span>
               </button>
 
               <button
-                onClick={handleShare}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/10 rounded-xl transition text-sky-400 hover:text-sky-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShare();
+                }}
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-sky-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-sky-400 hover:text-sky-300"
               >
-                <i className="ph-bold ph-telegram-logo text-base"></i>
-                <span className="text-[9px] font-bold tracking-wide mt-0.5">Share</span>
+                <i className="ph-bold ph-telegram-logo text-lg"></i>
+                <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Share</span>
               </button>
             </div>
 
             <div className="flex items-center">
               <div className="w-px h-5 bg-white/10 mr-1.5"></div>
               <button
-                onClick={() => { setSelectedVerses([]); setIsColorPaletteOpen(false); }}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedVerses([]);
+                  setIsColorPaletteOpen(false);
+                }}
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all duration-200 active:scale-75"
               >
                 <i className="ph-bold ph-x text-base"></i>
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between px-2 py-1 animate-[fadeIn_0.15s_ease-out]">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between px-2 py-1 animate-[fadeIn_0.2s_cubic-bezier(0.16,1,0.3,1)] gap-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsColorPaletteOpen(false);
+              }}
+              className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full text-gray-200 hover:text-white transition-all duration-200 active:scale-75 shrink-0"
+              title="Kembali"
+            >
+              <i className="ph-bold ph-arrow-left text-xs"></i>
+            </button>
+
+            <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1 px-1 flex-1">
               <button
-                onClick={() => saveVerseData('', null)}
-                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition active:scale-95"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveVerseData('', null);
+                }}
+                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-rose-300 hover:text-white hover:bg-rose-500 transition-all duration-200 active:scale-75 shrink-0"
                 title="Hapus Warna"
               >
                 <i className="ph-bold ph-prohibit text-xs"></i>
               </button>
-              <button onClick={() => saveVerseData('yellow', null)} className="w-7 h-7 rounded-full bg-amber-300 transition hover:scale-110 active:scale-95"></button>
-              <button onClick={() => saveVerseData('green', null)} className="w-7 h-7 rounded-full bg-emerald-300 transition hover:scale-110 active:scale-95"></button>
-              <button onClick={() => saveVerseData('blue', null)} className="w-7 h-7 rounded-full bg-sky-300 transition hover:scale-110 active:scale-95"></button>
-              <button onClick={() => saveVerseData('pink', null)} className="w-7 h-7 rounded-full bg-rose-300 transition hover:scale-110 active:scale-95"></button>
-              <button onClick={() => saveVerseData('purple', null)} className="w-7 h-7 rounded-full bg-purple-300 transition hover:scale-110 active:scale-95"></button>
+              {ALL_HIGHLIGHT_COLORS.map(color => {
+                const isLatest = recentColors[0] === color.id;
+                return (
+                  <button
+                    key={color.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveVerseData(color.id, null);
+                    }}
+                    className={`w-7 h-7 rounded-full ${color.bg} transition-all duration-200 hover:scale-125 active:scale-75 shrink-0 relative ${
+                      isLatest ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1c22] shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'opacity-90 hover:opacity-100'
+                    }`}
+                  />
+                );
+              })}
             </div>
-            <button
-              onClick={() => setIsColorPaletteOpen(false)}
-              className="w-7 h-7 flex items-center justify-center bg-white/10 rounded-full text-gray-300 hover:text-white transition"
-            >
-              <i className="ph-bold ph-arrow-left text-xs"></i>
-            </button>
           </div>
         )}
       </div>

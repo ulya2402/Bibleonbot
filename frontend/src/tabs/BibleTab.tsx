@@ -72,6 +72,9 @@ export default function BibleTab({
     'blue': 'bg-sky-100 text-sky-950 px-1 py-0.5 rounded-md box-decoration-clone',
     'pink': 'bg-rose-100 text-rose-950 px-1 py-0.5 rounded-md box-decoration-clone',
     'purple': 'bg-purple-100 text-purple-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'orange': 'bg-orange-100 text-orange-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'teal': 'bg-teal-100 text-teal-950 px-1 py-0.5 rounded-md box-decoration-clone',
+    'indigo': 'bg-indigo-100 text-indigo-950 px-1 py-0.5 rounded-md box-decoration-clone',
   };
 
   const renderVerseContent = (rawText: string) => {

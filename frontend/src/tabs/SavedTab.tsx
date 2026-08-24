@@ -13,6 +13,9 @@ export default function SavedTab({ savedVerses, fetchSaved }: any) {
     'blue': 'bg-sky-100/90 text-sky-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
     'pink': 'bg-rose-100/90 text-rose-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
     'purple': 'bg-purple-100/90 text-purple-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
+    'orange': 'bg-orange-100/90 text-orange-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
+    'teal': 'bg-teal-100/90 text-teal-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
+    'indigo': 'bg-indigo-100/90 text-indigo-950 px-1.5 py-0.5 rounded-md box-decoration-clone',
   };
 
   const removeSavedVerse = async (id: number) => {
