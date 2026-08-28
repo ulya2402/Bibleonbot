@@ -79,10 +79,12 @@ export default function App() {
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
+  const [isNoteSheetClosing, setIsNoteSheetClosing] = useState(false);
+  const [noteSheetData, setNoteSheetData] = useState<any>(null);
   const [noteInput, setNoteInput] = useState('');
   const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
-  const [viewingNote, setViewingNote] = useState<any>(null);
+
   const [recentColors, setRecentColors] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('bible_recent_colors');
@@ -192,31 +194,52 @@ export default function App() {
     fetchSavedData();
   }, [userId, activeTab]);
 
+  const closeNoteSheet = () => {
+    setIsNoteSheetClosing(true);
+    setTimeout(() => {
+      setIsNoteSheetOpen(false);
+      setIsNoteSheetClosing(false);
+      setNoteSheetData(null);
+    }, 250);
+  };
+
+  const handleDeleteNoteConfirm = () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg && typeof tg.showConfirm === 'function') {
+      tg.showConfirm('Hapus catatan pada ayat ini?', (confirmed: boolean) => {
+        if (confirmed) saveVerseData(null, '');
+      });
+    } else {
+      if (confirm('Hapus catatan pada ayat ini?')) {
+        saveVerseData(null, '');
+      }
+    }
+  };
+
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (!tg?.BackButton) return;
-
     const handleBack = () => {
-      if (isColorPaletteOpen) {
+      if (isNoteSheetOpen) {
+        closeNoteSheet();
+      } else if (isColorPaletteOpen) {
         setIsColorPaletteOpen(false);
       } else if (selectedVerses.length > 0) {
         setSelectedVerses([]);
       }
     };
-
-    if (isColorPaletteOpen || selectedVerses.length > 0) {
+    if (isNoteSheetOpen || isColorPaletteOpen || selectedVerses.length > 0) {
       tg.BackButton.show();
       tg.onEvent('backButtonClicked', handleBack);
     } else {
       tg.BackButton.hide();
       tg.offEvent('backButtonClicked', handleBack);
     }
-
     return () => {
       tg.BackButton.hide();
       tg.offEvent('backButtonClicked', handleBack);
     };
-  }, [isColorPaletteOpen, selectedVerses.length]);
+  }, [isNoteSheetOpen, isColorPaletteOpen, selectedVerses.length]);
 
   useEffect(() => {
     if (currentVersion.testamentScope === 'NT' && currentBook.test === 'PL') {
@@ -246,14 +269,14 @@ export default function App() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.modal-container') && selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote) {
+      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.sheet-container') && selectedVerses.length > 0 && !isNoteSheetOpen) {
         setSelectedVerses([]);
         setIsColorPaletteOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [selectedVerses, isNoteModalOpen, viewingNote]);
+  }, [selectedVerses, isNoteSheetOpen]);
 
   const handleVerseSelect = (verseId: number) => {
     setSelectedVerses(prev => prev.includes(verseId) ? prev.filter(id => id !== verseId) : [...prev, verseId]);
@@ -301,24 +324,62 @@ export default function App() {
     setTimeout(() => setShowToast(false), 2500);
   };
 
-  const openNoteModal = () => {
+  const openNoteSheet = (explicitData?: any) => {
+    if (explicitData) {
+      setNoteSheetData(explicitData);
+      setNoteInput(explicitData.note || '');
+      setIsNoteSheetOpen(true);
+      setIsNoteSheetClosing(false);
+      return;
+    }
     if (selectedVerses.length === 0) return;
     let existingNote = '';
+    const selectedVerseObjects = bibleVerses.filter(bv => selectedVerses.includes(bv.id));
+    const verseNumbers = selectedVerseObjects.map(v => v.verse).join(', ');
+    const combinedContent = selectedVerseObjects.map(v => v.content.replace(/^ \s*/, '')).join(' ');
+
     if (selectedVerses.length === 1) {
-      const v = bibleVerses.find(bv => bv.id === selectedVerses[0]);
+      const v = selectedVerseObjects[0];
       if (v) {
         const match = savedVerses.find(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
         if (match && match.note) existingNote = match.note;
       }
     }
+    setNoteSheetData({
+      book: currentBook.name,
+      chapter: currentChapter,
+      verse: verseNumbers,
+      content: combinedContent,
+      note: existingNote
+    });
     setNoteInput(existingNote);
-    setIsNoteModalOpen(true);
+    setIsNoteSheetOpen(true);
+    setIsNoteSheetClosing(false);
   };
 
   const saveVerseData = async (colorParam: string | null, noteParam: string | null) => {
-    const selectedVerseData = bibleVerses.filter(v => selectedVerses.includes(v.id));
-    if (selectedVerseData.length === 0) return;
+    if (noteParam !== null && noteSheetData && noteParam.trim() === (noteSheetData.note || '').trim()) {
+      closeNoteSheet();
+      return;
+    }
 
+    let targetVerses = bibleVerses.filter(v => selectedVerses.includes(v.id));
+    const targetBookName = noteSheetData?.book || currentBook.name;
+    const targetChapterNum = noteSheetData?.chapter || currentChapter;
+
+    if (targetVerses.length === 0 && noteSheetData) {
+      const singleVerse = bibleVerses.find(v => String(v.verse) === String(noteSheetData.verse));
+      if (singleVerse) {
+        targetVerses = [singleVerse];
+      } else {
+        targetVerses = [{
+          verse: noteSheetData.verse,
+          content: noteSheetData.content
+        }];
+      }
+    }
+
+    if (targetVerses.length === 0) return;
     if (colorParam) {
       setRecentColors(prev => {
         const next = [colorParam, ...prev.filter(c => c !== colorParam)].slice(0, 3);
@@ -328,20 +389,24 @@ export default function App() {
     }
 
     const newSavedVerses = [...savedVerses];
-    const fetchPromises = [];
+    const fetchPromises: Promise<any>[] = [];
 
     try {
-      for (const v of selectedVerseData) {
-        const existingIndex = newSavedVerses.findIndex(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(v.verse));
+      for (const v of targetVerses) {
+        const existingIndex = newSavedVerses.findIndex(sv => String(sv.book) === String(targetBookName) && String(sv.chapter) === String(targetChapterNum) && String(sv.verse) === String(v.verse));
         const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
-
         const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
         const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
+
+        if (existing && existing.color === finalColor && existing.note === finalNote) {
+          continue;
+        }
+
         const payload = {
           id: existing?.id,
           user_id: String(userId),
-          book: String(currentBook.name),
-          chapter: Number(currentChapter),
+          book: String(targetBookName),
+          chapter: Number(targetChapterNum),
           verse: Number(v.verse),
           content: String(v.content).replace(/^ \s*/, ''),
           color: String(finalColor),
@@ -361,16 +426,18 @@ export default function App() {
       }
 
       setSavedVerses(newSavedVerses);
-      triggerAction(noteParam !== null ? 'Catatan tersimpan!' : colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
+      triggerAction(noteParam !== null ? (noteParam === '' ? 'Catatan dihapus!' : 'Catatan tersimpan!') : colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
       
       if (noteParam !== null) {
-        setIsNoteModalOpen(false);
+        closeNoteSheet();
         setNoteInput('');
         setSelectedVerses([]);
       }
       setIsColorPaletteOpen(false);
 
-      await Promise.all(fetchPromises);
+      if (fetchPromises.length > 0) {
+        await Promise.all(fetchPromises);
+      }
     } catch (e: any) {
       triggerAction("Gagal menyambung ke server.");
     }
@@ -385,11 +452,43 @@ export default function App() {
     setSelectedVerses([]); setIsColorPaletteOpen(false);
   };
 
-  const handleCopy = () => {
-    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `"${v.content}"\n${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`).join('\n\n');
-    navigator.clipboard.writeText(`${selectedTexts}\n\n📖 @bibleonbot`);
+  const handleCopy = async () => {
+    const selectedTexts = bibleVerses
+      .filter(v => selectedVerses.includes(v.id))
+      .map(v => `"${String(v.content).replace(/^¶\s*/, '')}"\n${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`)
+      .join('\n\n');
+    const fullText = `${selectedTexts}\n\n@bibleonbot`;
+
+    let copied = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(fullText);
+        copied = true;
+      } catch (err) {
+        console.error('Clipboard API Error:', err);
+      }
+    }
+
+    if (!copied) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      } catch (err) {
+        console.error('Fallback Copy Error:', err);
+      }
+    }
+
     triggerAction('Ayat disalin!');
-    setSelectedVerses([]); setIsColorPaletteOpen(false);
+    setSelectedVerses([]);
+    setIsColorPaletteOpen(false);
   };
 
   const handleSelectVersion = (version: BibleVersion) => {
@@ -480,14 +579,13 @@ export default function App() {
             handleVerseSelect={handleVerseSelect}
             handleTouchStart={handleTouchStart}
             handleTouchEnd={handleTouchEnd}
-            setViewingNote={setViewingNote}
+            setViewingNote={openNoteSheet}
             goToPrevChapter={goToPrevChapter}
             goToNextChapter={goToNextChapter}
             canGoPrev={canGoPrev}
             canGoNext={canGoNext}
           />
         )}
-
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
         {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
@@ -610,72 +708,143 @@ export default function App() {
         </div>
       )}
 
-      {isNoteModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/40 backdrop-blur-xs p-0 sm:p-4 animate-[fadeIn_0.2s_ease-out]">
-          <div className="modal-container bg-white w-full max-w-[480px] rounded-t-[1.75rem] sm:rounded-[1.75rem] p-6 shadow-2xl flex flex-col">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden"></div>
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h3 className="font-bold text-[16px] text-gray-900 tracking-tight">Catatan Renungan</h3>
-                <p className="text-[11px] text-gray-400 font-medium mt-0.5">{currentBook.name} {currentChapter}:{selectedVerses.map(id => bibleVerses.find(v => v.id === id)?.verse).filter(Boolean).join(', ')}</p>
-              </div>
-              <button onClick={() => setIsNoteModalOpen(false)} className="w-8 h-8 rounded-full bg-[#f4f5f7] flex items-center justify-center text-gray-500 hover:text-gray-900 transition">
-                <i className="ph-bold ph-x text-sm"></i>
-              </button>
-            </div>
-            <textarea
-              value={noteInput}
-              onChange={(e) => setNoteInput(e.target.value)}
-              className="w-full bg-[#f4f5f7] rounded-2xl p-4 text-[13.5px] leading-relaxed text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-[#eaedf2] transition resize-none h-36 mb-5"
-              placeholder="Tuliskan renungan atau perenungan pribadi Anda..."
-              autoFocus
-            />
-            <div className="flex gap-2.5">
-              <button onClick={() => setIsNoteModalOpen(false)} className="px-5 py-3 bg-[#f4f5f7] text-gray-700 rounded-xl font-bold text-[12px] hover:bg-gray-200 transition">Batal</button>
-              <button onClick={() => saveVerseData(null, noteInput)} className="flex-1 py-3 bg-gray-900 text-white rounded-xl font-bold text-[12px] hover:bg-black transition active:scale-[0.98]">Simpan Catatan</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {isNoteSheetOpen && (
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end">
+          <div 
+            onClick={closeNoteSheet}
+            className={`fixed inset-0 bg-black/45 ${
+              isNoteSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
+            }`}
+          />
+          <div 
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] rounded-t-[2.25rem] h-[82vh] max-h-[720px] flex flex-col shadow-[0_-16px_40px_rgba(0,0,0,0.18)] border-t border-x border-gray-300/80 overflow-hidden isolate ${
+              isNoteSheetClosing ? 'sheet-exit' : 'sheet-enter'
+            }`}
+          >
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
 
-      {viewingNote && (
-        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-[fadeIn_0.15s_ease-out]">
-          <div className="modal-container bg-white w-full max-w-[420px] rounded-[1.75rem] p-6 shadow-2xl relative">
-            <div className="flex justify-between items-center mb-3">
-              <span className="px-2.5 py-1 bg-[#f4f5f7] rounded-md text-[11px] font-bold uppercase tracking-wider text-gray-700">
-                {viewingNote.book} {viewingNote.chapter}:{viewingNote.verse}
-              </span>
-              <button onClick={() => setViewingNote(null)} className="w-7 h-7 bg-[#f4f5f7] rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 transition">
-                <i className="ph-bold ph-x text-xs"></i>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0 bg-[#f8f9fa]">
+              <button 
+                onClick={closeNoteSheet}
+                className="text-[14px] font-medium text-gray-500 hover:text-gray-900 active:scale-90 transition-transform py-1 px-1 select-none"
+              >
+                Batal
+              </button>
+              
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white border border-gray-200/90 rounded-full shadow-2xs">
+                <i className="ph-fill ph-book-open-text text-gray-900 text-xs"></i>
+                <span className="text-[12.5px] font-extrabold text-gray-900 tracking-tight">
+                  {noteSheetData ? `${noteSheetData.book} ${noteSheetData.chapter}:${noteSheetData.verse}` : 'Jurnal Renungan'}
+                </span>
+              </div>
+
+              <button 
+                onClick={() => saveVerseData(null, noteInput)}
+                className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+              >
+                Selesai
               </button>
             </div>
-            <p className="text-[13px] text-gray-500 italic leading-relaxed pl-3 my-3">
-              "{viewingNote.content}"
-            </p>
-            <div className="my-4">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-1.5">Catatan</span>
-              <p className="text-[14px] text-gray-800 leading-relaxed font-normal whitespace-pre-wrap">
-                {viewingNote.note}
-              </p>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(`Catatan (${viewingNote.book} ${viewingNote.chapter}:${viewingNote.verse}):\n"${viewingNote.content}"\n\nRenungan:\n${viewingNote.note}`);
-                  triggerAction('Catatan disalin!');
-                  setViewingNote(null);
-                }}
-                className="flex-1 py-2.5 bg-[#f4f5f7] hover:bg-gray-200 text-gray-800 rounded-xl text-[12px] font-bold transition flex items-center justify-center gap-1.5"
-              >
-                <i className="ph-bold ph-copy text-sm"></i>
-                <span>Salin Catatan</span>
-              </button>
-              <button
-                onClick={() => setViewingNote(null)}
-                className="px-5 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-[12px] font-bold transition"
-              >
-                Tutup
-              </button>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 no-scrollbar">
+              {noteSheetData?.content && (
+                <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-400">
+                    <i className="ph-bold ph-quotes text-xs"></i>
+                    <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
+                  </div>
+                  <p className="text-[13.5px] text-gray-800 leading-relaxed font-normal select-none pl-0.5">
+                    "{noteSheetData.content}"
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-2xs space-y-3 transition-colors focus-within:border-gray-400">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                    {noteSheetData?.note ? 'Catatan Tersimpan' : 'Tulis Catatan'}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400">
+                    {noteInput.length} karakter
+                  </span>
+                </div>
+
+                <textarea
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  placeholder="Ketik renungan, doa, atau yang lainya disini..."
+                  className="w-full bg-transparent text-[14.5px] leading-relaxed text-gray-900 placeholder-gray-400 focus:outline-none transition-none resize-none h-36"
+                />
+
+                {noteSheetData?.note && (
+                  <div className="flex justify-end pt-1 border-t border-gray-100">
+                    <button
+                      onClick={handleDeleteNoteConfirm}
+                      className="text-[11.5px] font-bold text-rose-600 hover:text-rose-700 active:scale-95 transition-transform flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-rose-50 select-none"
+                    >
+                      <i className="ph-bold ph-trash text-xs"></i>
+                      <span>Hapus Catatan</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <i className="ph-bold ph-clock-counter-clockwise text-xs"></i>
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider">
+                      Riwayat Catatan Tersimpan
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                    {savedVerses.filter((v: any) => v.note && v.note.trim() !== '').length}
+                  </span>
+                </div>
+
+                {savedVerses.filter((v: any) => v.note && v.note.trim() !== '').length > 0 ? (
+                  <div className="bg-white border border-gray-200/90 rounded-2xl divide-y divide-gray-100 overflow-hidden shadow-2xs">
+                    {savedVerses
+                      .filter((v: any) => v.note && v.note.trim() !== '')
+                      .slice(0, 8)
+                      .map((item: any) => (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setNoteSheetData({
+                              book: item.book,
+                              chapter: item.chapter,
+                              verse: item.verse,
+                              content: item.content,
+                              note: item.note
+                            });
+                            setNoteInput(item.note);
+                          }}
+                          className="p-3.5 hover:bg-gray-50/80 active:bg-gray-100 active:scale-[0.995] cursor-pointer transition-all duration-150 flex flex-col gap-1 select-none group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12.5px] font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                              {item.book} {item.chapter}:{item.verse}
+                            </span>
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-gray-400 group-hover:text-gray-600 transition-colors">
+                              <span>Buka</span>
+                              <i className="ph-bold ph-caret-right text-xs"></i>
+                            </div>
+                          </div>
+                          <p className="text-[13px] text-gray-500 line-clamp-2 leading-relaxed font-normal">
+                            {item.note}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-5 text-center">
+                    <p className="text-[12px] text-gray-400 font-normal italic select-none">
+                      Belum ada riwayat catatan lain yang tersimpan.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -684,7 +853,7 @@ export default function App() {
       <div
         onClick={(e) => e.stopPropagation()}
         className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-1.75rem)] max-w-[430px] bg-[#1a1c22]/90 backdrop-blur-2xl text-white rounded-[2rem] shadow-[0_20px_50px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] p-2 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          selectedVerses.length > 0 && !isNoteModalOpen && !viewingNote ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
+          selectedVerses.length > 0 && !isNoteSheetOpen ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
         }`}
         style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.25rem)' }}
       >
@@ -751,7 +920,7 @@ export default function App() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  openNoteModal();
+                  openNoteSheet();
                 }}
                 className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white"
               >
@@ -841,7 +1010,7 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteModalOpen || viewingNote || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
         <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
         <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>

@@ -64,3 +64,62 @@ html, body {
 /* Menyembunyikan tampilan scrollbar bawaan */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@keyframes sheetSlideUp {
+  0% {
+    transform: translate3d(0, 100%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sheetSlideDown {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes backdropFadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.sheet-container {
+  overflow: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+}
+
+.sheet-enter {
+  animation: sheetSlideUp 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  transform: translate3d(0, 100%, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.sheet-exit {
+  animation: sheetSlideDown 0.22s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.backdrop-enter {
+  animation: backdropFadeIn 0.25s ease-out forwards;
+  will-change: opacity;
+}
+
+.backdrop-exit {
+  animation: backdropFadeOut 0.2s ease-in forwards;
+  will-change: opacity;
+}

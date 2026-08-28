@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
 
 interface BibleTabProps {
@@ -21,7 +21,7 @@ interface BibleTabProps {
   canGoNext: boolean;
 }
 
-export default function BibleTab({
+function BibleTabComponent({
   currentBook,
   currentChapter,
   currentVersion,
@@ -338,8 +338,8 @@ export default function BibleTab({
                               note: savedMatch.note
                             });
                           }}
-                          className="w-4 h-4 flex items-center justify-center text-gray-400 hover:text-gray-700 transition active:scale-90"
-                          title="Lihat catatan"
+                          className="w-4 h-4 flex items-center justify-center text-emerald-600 hover:text-emerald-800 transition-all duration-150 active:scale-75"
+                          title="Buka Catatan"
                         >
                           <i className="ph-fill ph-notebook text-xs"></i>
                         </button>
@@ -363,3 +363,5 @@ export default function BibleTab({
     </div>
   );
 }
+const BibleTab = memo(BibleTabComponent);
+export default BibleTab;
