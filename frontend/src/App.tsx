@@ -78,6 +78,7 @@ export default function App() {
   const [selectorStep, setSelectorStep] = useState<'book' | 'chapter' | 'version'>('book');
   const [tempSelectedBook, setTempSelectedBook] = useState(BIBLE_BOOKS[0]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedVerse, setHighlightedVerse] = useState<number | null>(null);
 
   const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
   const [isNoteSheetClosing, setIsNoteSheetClosing] = useState(false);
@@ -497,6 +498,20 @@ export default function App() {
     setIsSelectorOpen(false);
   };
 
+  const handleNavigateToVerse = (bookName: string, chapter: number, verseNumber?: number) => {
+    const matchedBook = BIBLE_BOOKS.find(
+      b => b.name.toLowerCase() === String(bookName).toLowerCase() || b.id.toLowerCase() === String(bookName).toLowerCase()
+    ) || BIBLE_BOOKS[0];
+    setCurrentBook(matchedBook);
+    setCurrentChapter(Number(chapter));
+    if (verseNumber) {
+      setHighlightedVerse(Number(verseNumber));
+    }
+    setActiveTab('bible');
+    setSelectedVerses([]);
+    setIsNavVisible(true);
+  };
+
   const switchActiveTab = (tab: string) => {
     setActiveTab(tab);
     setSelectedVerses([]);
@@ -584,9 +599,11 @@ export default function App() {
             goToNextChapter={goToNextChapter}
             canGoPrev={canGoPrev}
             canGoNext={canGoNext}
+            highlightedVerse={highlightedVerse}
+            setHighlightedVerse={setHighlightedVerse}
           />
         )}
-        {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} />}
+        {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} onNavigateToVerse={handleNavigateToVerse} />}
         {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
 
@@ -709,15 +726,15 @@ export default function App() {
       )}
 
       {isNoteSheetOpen && (
-        <div className="fixed inset-0 z-[110] flex flex-col justify-end">
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto">
           <div 
             onClick={closeNoteSheet}
-            className={`fixed inset-0 bg-black/45 ${
+            className={`fixed inset-0 bg-black/45 transition-colors ${
               isNoteSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
             }`}
           />
           <div 
-            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] rounded-t-[2.25rem] h-[82vh] max-h-[720px] flex flex-col shadow-[0_-16px_40px_rgba(0,0,0,0.18)] border-t border-x border-gray-300/80 overflow-hidden isolate ${
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 ${
               isNoteSheetClosing ? 'sheet-exit' : 'sheet-enter'
             }`}
           >

@@ -19,6 +19,8 @@ interface BibleTabProps {
   goToNextChapter: () => void;
   canGoPrev: boolean;
   canGoNext: boolean;
+  highlightedVerse?: number | null;
+  setHighlightedVerse?: (verse: number | null) => void;
 }
 
 function BibleTabComponent({
@@ -38,7 +40,9 @@ function BibleTabComponent({
   goToPrevChapter,
   goToNextChapter,
   canGoPrev,
-  canGoNext
+  canGoNext,
+  highlightedVerse,
+  setHighlightedVerse
 }: BibleTabProps) {
   const [verseSearch, setVerseSearch] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -161,6 +165,26 @@ function BibleTabComponent({
   const filteredVerses = bibleVerses.filter((v: any) =>
     v.content.toLowerCase().includes(verseSearch.toLowerCase()) || String(v.verse) === verseSearch
   );
+
+  useEffect(() => {
+    if (highlightedVerse && !isLoadingBible && bibleVerses.length > 0) {
+      const timer = setTimeout(() => {
+        const targetElement = document.getElementById(`verse-row-${highlightedVerse}`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+
+      const clearTimer = setTimeout(() => {
+        if (setHighlightedVerse) setHighlightedVerse(null);
+      }, 2000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [highlightedVerse, isLoadingBible, bibleVerses, setHighlightedVerse]);
 
   const isScopeMismatch = currentVersion.testamentScope === 'NT' && currentBook.test === 'PL';
 
@@ -314,12 +338,17 @@ function BibleTabComponent({
                   )}
 
                   <div
+                    id={`verse-row-${verseData.verse}`}
                     onClick={() => handleVerseSelect(verseData.id)}
                     onTouchStart={() => handleTouchStart(verseData.id)}
                     onTouchEnd={handleTouchEnd}
                     onTouchMove={handleTouchEnd}
-                    className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-colors ${
-                      selectedVerses.includes(verseData.id) ? 'bg-[#eaedf2]' : 'bg-transparent hover:bg-gray-100/60'
+                    className={`verse-item px-3 py-2.5 rounded-xl cursor-pointer flex gap-3 transition-all duration-150 ${
+                      Number(verseData.verse) === Number(highlightedVerse)
+                        ? 'verse-spotlight'
+                        : selectedVerses.includes(verseData.id)
+                        ? 'bg-[#eaedf2]'
+                        : 'bg-transparent hover:bg-gray-100/60'
                     }`}
                   >
                     <div className="flex flex-col items-center gap-1 shrink-0 w-6 pt-0.5">
