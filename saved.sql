@@ -9,5 +9,6 @@ CREATE TABLE saved_verses (
     content TEXT,
     color TEXT,
     note TEXT,
+    version TEXT DEFAULT 'AYT',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

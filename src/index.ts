@@ -9,7 +9,7 @@ export default {
         if (request.method === 'GET' && url.pathname === '/api/bible') {
             const book = url.searchParams.get('book') || 'Kej';
             const chapter = url.searchParams.get('chapter') || '1';
-            const version = url.searchParams.get('version') || 'TB';
+            const version = url.searchParams.get('version') || 'AYT';
             
             try {
                 const { results } = await env.DB.prepare(

@@ -40,7 +40,7 @@ export class ApiHandler {
                 const book = body.book || '';
                 const chapter = body.chapter || 1;
                 const verses = body.verses || '';
-                const version = body.version || 'TB';
+                const version = body.version || 'AYT';
                 const note = body.note || '';
                 const items: Array<{ verse: number; text: string }> = Array.isArray(body.items) ? body.items : [];
                 const webAppUrl = 'https://bibleonbot-testing-webapp.pages.dev/';
@@ -210,15 +210,16 @@ export class ApiHandler {
                 }
                 if (request.method === 'POST') {
                     const body: any = await request.json();
+                    const version = body.version || 'AYT';
                     
                     const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
                         .bind(body.user_id, body.book, body.chapter, body.verse).first();
                     if (existing) {
-                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
-                            .bind(body.color, body.content, body.note, existing.id).run();
+                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, version = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
+                            .bind(body.color, body.content, body.note, version, existing.id).run();
                     } else {
-                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
-                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note).run();
+                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
+                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note, version).run();
                     }
                     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
                 }
