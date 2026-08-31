@@ -90,7 +90,7 @@ export class ApiHandler {
             try {
                 if (request.method === 'GET') {
                     const userId = url.searchParams.get('userId');
-                    const saved = await this.env.DB.prepare("SELECT * FROM saved_verses WHERE user_id = ? ORDER BY created_at DESC").bind(userId).all();
+                    const saved = await this.env.DB.prepare("SELECT * FROM saved_verses WHERE user_id = ? ORDER BY created_at DESC, id DESC").bind(userId).all();
                     return new Response(JSON.stringify(saved.results || []), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
                 }
                 if (request.method === 'POST') {
@@ -98,14 +98,11 @@ export class ApiHandler {
                     
                     const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
                         .bind(body.user_id, body.book, body.chapter, body.verse).first();
-
                     if (existing) {
-                        // PERBAIKAN: Menambahkan binding untuk 'note'
-                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ? WHERE id = ?")
+                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
                             .bind(body.color, body.content, body.note, existing.id).run();
                     } else {
-                        // PERBAIKAN: Menambahkan kolom 'note' di INSERT dan values-nya
-                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
+                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
                             .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note).run();
                     }
                     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
@@ -115,7 +112,10 @@ export class ApiHandler {
                     await this.env.DB.prepare("DELETE FROM saved_verses WHERE id = ?").bind(id).run();
                     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
                 }
-            } catch (error: any) { return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders }); }
+            } catch (error: any) { 
+                console.error('Saved Verses API Error:', error);
+                return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders }); 
+            }
         }
 
         return new Response('Not Found', { status: 404, headers: corsHeaders });

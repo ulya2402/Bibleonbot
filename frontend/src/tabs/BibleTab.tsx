@@ -220,7 +220,6 @@ function BibleTabComponent({
             onClick={() => { setSelectorStep('version'); setIsSelectorOpen(true); }}
             className="flex items-center gap-1 px-3 py-1.5 bg-white text-gray-800 rounded-full shadow-xs text-[12px] font-bold transition active:scale-95 shrink-0 hover:bg-gray-50"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>{currentVersion.shortName}</span>
             <i className="ph-bold ph-caret-down text-gray-400 text-[10px]"></i>
           </button>
@@ -367,10 +366,10 @@ function BibleTabComponent({
                               note: savedMatch.note
                             });
                           }}
-                          className="w-4 h-4 flex items-center justify-center text-emerald-600 hover:text-emerald-800 transition-all duration-150 active:scale-75"
+                          className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-all duration-150 active:scale-75"
                           title="Buka Catatan"
                         >
-                          <i className="ph-fill ph-notebook text-xs"></i>
+                          <i className="ph-bold ph-text-align-left text-xs"></i>
                         </button>
                       )}
                     </div>

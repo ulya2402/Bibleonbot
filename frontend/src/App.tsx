@@ -411,11 +411,11 @@ export default function App() {
           verse: Number(v.verse),
           content: String(v.content).replace(/^ \s*/, ''),
           color: String(finalColor),
-          note: String(finalNote)
+          note: String(finalNote),
+          created_at: new Date().toISOString()
         };
-
         if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
-        else newSavedVerses.push({ ...payload, id: Date.now() + Math.random() });
+        else newSavedVerses.unshift({ ...payload, id: Date.now() + Math.random() });
 
         fetchPromises.push(
           fetch(`${API_URL}/saved-verses?t=${Date.now()}`, {
@@ -444,22 +444,67 @@ export default function App() {
     }
   };
 
+  const formatSelectedVersesText = (quoteStyle = false) => {
+    const selectedObjects = bibleVerses
+      .filter(v => selectedVerses.includes(v.id))
+      .sort((a, b) => a.verse - b.verse);
+
+    if (selectedObjects.length === 0) return '';
+
+    const toSuperscript = (num: number) => {
+      const map: Record<string, string> = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
+      };
+      return String(num).split('').map(d => map[d] || d).join('');
+    };
+
+    const verseNums = selectedObjects.map(v => v.verse);
+    const ranges: string[] = [];
+    let start = verseNums[0];
+    let end = start;
+
+    for (let i = 1; i < verseNums.length; i++) {
+      if (verseNums[i] === end + 1) {
+        end = verseNums[i];
+      } else {
+        ranges.push(start === end ? `${start}` : `${start}-${end}`);
+        start = verseNums[i];
+        end = start;
+      }
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+    const rangeStr = ranges.join(', ');
+
+    let combinedBody = '';
+    if (selectedObjects.length === 1) {
+      combinedBody = selectedObjects[0].content.replace(/^ \s*/, '').trim();
+    } else {
+      combinedBody = selectedObjects
+        .map(v => `${toSuperscript(v.verse)} ${v.content.replace(/^ \s*/, '').trim()}`)
+        .join(' ');
+    }
+
+    if (quoteStyle) {
+      return `> "${combinedBody}"\n> — ${currentBook.name} ${currentChapter}:${rangeStr} (${currentVersion.shortName})\n\n@bibleonbot`;
+    }
+
+    return `"${combinedBody}"\n— ${currentBook.name} ${currentChapter}:${rangeStr} (${currentVersion.shortName})\n\n@bibleonbot`;
+  };
+
   const handleShare = () => {
-    const selectedTexts = bibleVerses.filter(v => selectedVerses.includes(v.id)).map(v => `> "${v.content}"\n> — ${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`).join('\n\n');
-    const fullText = `${selectedTexts}\n\n📖 @bibleonbot`;
+    const fullText = formatSelectedVersesText(true);
+    if (!fullText) return;
     const tg = (window as any).Telegram?.WebApp;
     const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(fullText)}`;
     if (tg && tg.openTelegramLink) { tg.openTelegramLink(shareUrl); } else { window.open(shareUrl, '_blank'); }
-    setSelectedVerses([]); setIsColorPaletteOpen(false);
+    setSelectedVerses([]);
+    setIsColorPaletteOpen(false);
   };
 
   const handleCopy = async () => {
-    const selectedTexts = bibleVerses
-      .filter(v => selectedVerses.includes(v.id))
-      .map(v => `"${String(v.content).replace(/^¶\s*/, '')}"\n${currentBook.name} ${currentChapter}:${v.verse} (${currentVersion.shortName})`)
-      .join('\n\n');
-    const fullText = `${selectedTexts}\n\n@bibleonbot`;
-
+    const fullText = formatSelectedVersesText(false);
+    if (!fullText) return;
     let copied = false;
     if (navigator.clipboard && window.isSecureContext) {
       try {
@@ -469,7 +514,6 @@ export default function App() {
         console.error('Clipboard API Error:', err);
       }
     }
-
     if (!copied) {
       try {
         const textArea = document.createElement('textarea');
@@ -486,7 +530,6 @@ export default function App() {
         console.error('Fallback Copy Error:', err);
       }
     }
-
     triggerAction('Ayat disalin!');
     setSelectedVerses([]);
     setIsColorPaletteOpen(false);
