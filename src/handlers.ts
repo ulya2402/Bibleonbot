@@ -59,17 +59,84 @@ export class BotHandler {
         const isAdmin = userId.toString() === this.env.ADMIN_TELEGRAM_ID;
 
         if (text.startsWith('/start')) {
-            const webAppUrl = 'https://bibleonbot-testing-webapp.pages.dev/';
-            const richHtml = `<h3>Alkitab ID</h3><p>${t.welcome.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>')}</p><hr/><tg-button-row align="center"><tg-button type="web_app" style="primary" url="${webAppUrl}">${t.open_webapp}</tg-button></tg-button-row>`;
-            
-            const sent = await this.bot.sendRichMessage(chatId, { html: richHtml });
+            const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const userName = message.from?.first_name || 'Saudara';
+            const directAppUrl = 'https://t.me/bibleonbot?startapp=open';
+            const donationUrl = 'https://saweria.co/tobiasilya';
+
+            const blocks: any[] = [
+                {
+                    type: 'slideshow',
+                    blocks: [
+                        { type: 'photo', photo: { type: 'photo', media: 'https://i.ibb.co/1tBXx9Dw/Group-1.png' } },
+                        { type: 'photo', photo: { type: 'photo', media: 'https://i.ibb.co/pTs3NjC/Group-2.png' } },
+                        { type: 'photo', photo: { type: 'photo', media: 'https://i.ibb.co/q37ZkPdC/Group-4.png' } },
+                        { type: 'photo', photo: { type: 'photo', media: 'https://i.ibb.co/k2cgvDVL/Group-3.png' } }
+                    ]
+                },
+                {
+                    type: 'heading',
+                    size: 1,
+                    text: `Selamat datang saudara ${userName}`
+                },
+                {
+                    type: 'details',
+                    summary: 'Tentang Alkitab ID',
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'Alkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah. Tunggu apa lagi? Tetap terhubung dengan Firman Tuhan.'
+                        }
+                    ]
+                },
+                {
+                    type: 'details',
+                    summary: 'Ingin Berdonasi?',
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'Silakan donasi via Saweria:'
+                        },
+                        {
+                            type: 'buttons',
+                            align: 'center',
+                            buttons: [
+                                {
+                                    text: 'Donasi via Saweria',
+                                    style: 'success',
+                                    url: donationUrl
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    type: 'paragraph',
+                    text: 'Silakan tekan tombol di bawah ini untuk membuka Alkitab:'
+                },
+                {
+                    type: 'buttons',
+                    align: 'center',
+                    buttons: [
+                        {
+                            text: 'Buka Alkitab',
+                            style: 'primary',
+                            url: directAppUrl
+                        }
+                    ]
+                }
+            ];
+
+            const sent = await this.bot.sendRichMessage(chatId, { blocks });
             if (!sent) {
+                const fallbackText = `<b>Selamat datang saudara ${escapeHtml(userName)}</b>\n\nAlkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah. Tunggu apa lagi? Tetap terhubung dengan Firman Tuhan.\n\nSilakan tekan tombol di bawah ini untuk membuka Alkitab:`;
                 const replyMarkup = {
-                    inline_keyboard: [[
-                        { text: t.open_webapp, web_app: { url: webAppUrl } }
-                    ]]
+                    inline_keyboard: [
+                        [{ text: 'Buka Alkitab', url: directAppUrl }],
+                        [{ text: 'Donasi via Saweria', url: donationUrl }]
+                    ]
                 };
-                await this.bot.sendMessage(chatId, t.welcome, replyMarkup);
+                await this.bot.sendMessage(chatId, fallbackText, replyMarkup);
             }
             return;
         }
