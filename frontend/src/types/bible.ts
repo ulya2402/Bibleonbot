@@ -36,6 +36,15 @@ export const BIBLE_LANGUAGES: LanguageGroup[] = [
         langCode: 'id',
         testamentScope: 'ALL',
         description: 'Klinkert / Bode 1958'
+      },
+      {
+        id: 'AYT',
+        name: 'Alkitab Yang Terbuka (AYT)',
+        shortName: 'AYT',
+        language: 'Bahasa Indonesia',
+        langCode: 'id',
+        testamentScope: 'ALL',
+        description: 'Bahasa Indonesia Terbuka © 2018-2022 Yayasan Lembaga SABDA'
       }
     ]
   },
@@ -105,4 +114,4 @@ export const BIBLE_LANGUAGES: LanguageGroup[] = [
 ];
 
 export const ALL_BIBLE_VERSIONS: BibleVersion[] = BIBLE_LANGUAGES.flatMap(lang => lang.versions);
-export const DEFAULT_BIBLE_VERSION: BibleVersion = ALL_BIBLE_VERSIONS[0];
+export const DEFAULT_BIBLE_VERSION: BibleVersion = ALL_BIBLE_VERSIONS.find(v => v.id === 'AYT') || ALL_BIBLE_VERSIONS[0];

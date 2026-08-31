@@ -461,7 +461,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
               <i className="ph-fill ph-bookmark-simple text-xl"></i>
             </div>
             <h4 className="font-bold text-sm text-gray-900 mb-1">
-              {hasActiveFilter ? 'Tidak ada hasil' : 'Belum ada data'}
+              {hasActiveFilter ? 'Tidak ada hasil' : 'Belum ada Aktivitas'}
             </h4>
             <p className="text-xs text-gray-400 max-w-[240px] leading-relaxed mb-3">
               {hasActiveFilter

@@ -81,8 +81,29 @@ function BibleTabComponent({
     'indigo': 'bg-indigo-100 text-indigo-950 px-1 py-0.5 rounded-md box-decoration-clone',
   };
 
+  const renderPericopeTitle = (rawTitle: string, isFirstRow: boolean) => {
+    if (!rawTitle) return null;
+    const cleanTitle = rawTitle.replace(/<br\s*\/?>/gi, ' \u2014 ').trim();
+    const match = cleanTitle.match(/^(.*?)\s*(\([^\)]+\))$/);
+    const mainText = match ? match[1].trim() : cleanTitle;
+    const parallelRef = match ? match[2].trim() : null;
+
+    return (
+      <div className={`px-3 select-none ${isFirstRow ? 'pt-2 pb-3' : 'pt-8 pb-3.5'}`}>
+        <h3 className="text-[18px] sm:text-[19px] font-extrabold text-gray-900 tracking-tight leading-snug">
+          {mainText}
+        </h3>
+        {parallelRef && (
+          <p className="text-[11.5px] font-medium text-gray-400 mt-1 tracking-normal leading-relaxed">
+            {parallelRef}
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const renderVerseContent = (rawText: string) => {
-    const textWithoutPilcrow = rawText.replace(/^¶\s*/, '').replace(/¶\s*/g, '');
+    const textWithoutPilcrow = rawText.replace(/^¶\s*/, '').replace(/¶\s*/g, '').replace(/<t\s*\/>/g, '');
     const lines = textWithoutPilcrow.split(/\r?\n/);
     
     return lines.map((line, lineIdx) => {
@@ -316,26 +337,26 @@ function BibleTabComponent({
               </div>
             </div>
           ) : filteredVerses.length > 0 ? (
-            filteredVerses.map((verseData: any) => {
+            filteredVerses.map((verseData: any, idx: number) => {
               const isParagraphStart = String(verseData.content).trim().startsWith('¶');
+              const hasTitle = Boolean(verseData.title && verseData.title.trim() !== '');
               const savedMatch = savedVerses.find((sv: any) =>
                 String(sv.book) === String(currentBook.name) &&
                 String(sv.chapter) === String(currentChapter) &&
                 String(sv.verse) === String(verseData.verse)
               );
-
               const highlightClass = savedMatch && savedMatch.color ? COLOR_MAP[savedMatch.color] : '';
               const hasNote = savedMatch && savedMatch.note && savedMatch.note.trim() !== '';
 
               return (
                 <div key={verseData.id} className="space-y-1">
-                  {isParagraphStart && (
+                  {hasTitle && renderPericopeTitle(verseData.title, idx === 0)}
+                  {isParagraphStart && !hasTitle && (
                     <div className="pt-4 pb-1.5 flex items-center gap-2 select-none">
                       <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
                       <div className="h-px bg-gray-200/80 flex-1"></div>
                     </div>
                   )}
-
                   <div
                     id={`verse-row-${verseData.verse}`}
                     onClick={() => handleVerseSelect(verseData.id)}
