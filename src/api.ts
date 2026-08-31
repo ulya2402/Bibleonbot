@@ -1,3 +1,5 @@
+import { TelegramBot } from './telegram';
+
 export class ApiHandler {
     env: any;
     constructor(env: any) { this.env = env; }
@@ -20,7 +22,6 @@ export class ApiHandler {
                 const news = await this.env.DB.prepare("SELECT * FROM news ORDER BY id DESC LIMIT 50").all();
                 const communities = await this.env.DB.prepare("SELECT * FROM communities WHERE is_channel = 0 ORDER BY id DESC LIMIT 50").all();
                 const channels = await this.env.DB.prepare("SELECT * FROM communities WHERE is_channel = 1 ORDER BY id DESC LIMIT 50").all();
-
                 return new Response(JSON.stringify({
                     dailyVerse: { verse_reference: dailyVerse?.reference || 'Yohanes 3:16', verse_text: dailyVerse?.text || 'Ayat belum diatur.' },
                     news: news.results || [], communities: communities.results || [], channels: channels.results || []
@@ -28,7 +29,121 @@ export class ApiHandler {
             } catch (error: any) { return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders }); }
         }
 
-        // 2. SIMPAN AYAT HARI INI
+        if (request.method === 'POST' && url.pathname === '/api/share-verse') {
+            try {
+                const body: any = await request.json();
+                const userId = body.userId;
+                if (!userId) {
+                    return new Response(JSON.stringify({ error: 'Missing userId' }), { status: 400, headers: corsHeaders });
+                }
+
+                const book = body.book || '';
+                const chapter = body.chapter || 1;
+                const verses = body.verses || '';
+                const version = body.version || 'TB';
+                const note = body.note || '';
+                const items: Array<{ verse: number; text: string }> = Array.isArray(body.items) ? body.items : [];
+                const webAppUrl = 'https://bibleonbot-testing-webapp.pages.dev/';
+
+                const tableCells: any[][] = [];
+
+                if (items.length > 0) {
+                    items.forEach(item => {
+                        tableCells.push([
+                            {
+                                text: { type: 'bold', text: String(item.verse) },
+                                align: 'center',
+                                valign: 'top'
+                            },
+                            {
+                                text: item.text,
+                                align: 'left',
+                                valign: 'top'
+                            }
+                        ]);
+                    });
+                } else if (body.content) {
+                    tableCells.push([
+                        {
+                            text: { type: 'bold', text: String(verses) },
+                            align: 'center',
+                            valign: 'top'
+                        },
+                        {
+                            text: body.content,
+                            align: 'left',
+                            valign: 'top'
+                        }
+                    ]);
+                }
+
+                const blocks: any[] = [
+                    {
+                        type: 'paragraph',
+                        text: { type: 'bold', text: `${book} ${chapter}:${verses} (${version})` }
+                    },
+                    {
+                        type: 'table',
+                        is_compact: true,
+                        cells: tableCells
+                    }
+                ];
+
+                if (note) {
+                    blocks.push({
+                        type: 'details',
+                        summary: 'Catatan Pribadi',
+                        is_open: true,
+                        blocks: [
+                            {
+                                type: 'paragraph',
+                                text: { type: 'italic', text: note }
+                            }
+                        ]
+                    });
+                }
+
+                const directAppUrl = 'https://t.me/bibleonbot?startapp=open';
+
+                blocks.push({
+                    type: 'buttons',
+                    align: 'center',
+                    buttons: [
+                        {
+                            text: 'Buka Alkitab',
+                            style: 'primary',
+                            url: directAppUrl
+                        }
+                    ]
+                });
+
+                const bot = new TelegramBot(this.env.TELEGRAM_BOT_TOKEN);
+                const sent = await bot.sendRichMessage(userId, { blocks });
+
+                if (!sent) {
+                    let fallbackContent = '';
+                    if (items.length > 0) {
+                        fallbackContent = items.map(item => `<b>${item.verse}</b> ${item.text}`).join('\n\n');
+                    } else {
+                        fallbackContent = body.content || '';
+                    }
+
+                    const fallbackText = `<b>${book} ${chapter}:${verses} (${version})</b>\n\n${fallbackContent}${note ? `\n\n<i>${note}</i>` : ''}`;
+                    const replyMarkup = {
+                        inline_keyboard: [[
+                            { text: 'Buka Alkitab', url: directAppUrl }
+                        ]]
+                    };
+                    await bot.sendMessage(userId, fallbackText, replyMarkup);
+                }
+
+                return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+            } catch (error: any) {
+                console.error('Share Verse Error:', error);
+                return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+            }
+        }
+
         if (request.method === 'POST' && url.pathname === '/api/admin/daily-verse') {
             try {
                 const body: any = await request.json();

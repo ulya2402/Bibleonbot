@@ -59,15 +59,18 @@ export class BotHandler {
         const isAdmin = userId.toString() === this.env.ADMIN_TELEGRAM_ID;
 
         if (text.startsWith('/start')) {
-
             const webAppUrl = 'https://bibleonbot-testing-webapp.pages.dev/';
-
-            const replyMarkup = {
-                inline_keyboard: [[
-                    { text: t.open_webapp, web_app: { url: webAppUrl } }
-                ]]
-            };
-            await this.bot.sendMessage(chatId, t.welcome, replyMarkup);
+            const richHtml = `<h3>Alkitab ID</h3><p>${t.welcome.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>')}</p><hr/><tg-button-row align="center"><tg-button type="web_app" style="primary" url="${webAppUrl}">${t.open_webapp}</tg-button></tg-button-row>`;
+            
+            const sent = await this.bot.sendRichMessage(chatId, { html: richHtml });
+            if (!sent) {
+                const replyMarkup = {
+                    inline_keyboard: [[
+                        { text: t.open_webapp, web_app: { url: webAppUrl } }
+                    ]]
+                };
+                await this.bot.sendMessage(chatId, t.welcome, replyMarkup);
+            }
             return;
         }
 

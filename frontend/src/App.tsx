@@ -492,12 +492,63 @@ export default function App() {
     return `"${combinedBody}"\n— ${currentBook.name} ${currentChapter}:${rangeStr} (${currentVersion.shortName})\n\n@bibleonbot`;
   };
 
-  const handleShare = () => {
-    const fullText = formatSelectedVersesText(true);
-    if (!fullText) return;
-    const tg = (window as any).Telegram?.WebApp;
-    const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(fullText)}`;
-    if (tg && tg.openTelegramLink) { tg.openTelegramLink(shareUrl); } else { window.open(shareUrl, '_blank'); }
+  const handleShare = async () => {
+    const selectedObjects = bibleVerses
+      .filter(v => selectedVerses.includes(v.id))
+      .sort((a, b) => a.verse - b.verse);
+    if (selectedObjects.length === 0) return;
+
+    const verseNums = selectedObjects.map(v => v.verse);
+    const ranges: string[] = [];
+    let start = verseNums[0];
+    let end = start;
+    for (let i = 1; i < verseNums.length; i++) {
+      if (verseNums[i] === end + 1) {
+        end = verseNums[i];
+      } else {
+        ranges.push(start === end ? `${start}` : `${start}-${end}`);
+        start = verseNums[i];
+        end = start;
+      }
+    }
+    ranges.push(start === end ? `${start}` : `${start}-${end}`);
+    const rangeStr = ranges.join(', ');
+
+    const items = selectedObjects.map(v => ({
+      verse: v.verse,
+      text: v.content.replace(/^ \s*/, '').trim()
+    }));
+
+    let existingNote = '';
+    if (selectedVerses.length === 1) {
+      const match = savedVerses.find(sv => String(sv.book) === String(currentBook.name) && String(sv.chapter) === String(currentChapter) && String(sv.verse) === String(selectedObjects[0].verse));
+      if (match && match.note) existingNote = match.note;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/share-verse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userId,
+          book: currentBook.name,
+          chapter: currentChapter,
+          verses: rangeStr,
+          version: currentVersion.shortName,
+          items: items,
+          note: existingNote
+        })
+      });
+
+      if (res.ok) {
+        triggerAction('Ayat terkirim ke chat!');
+      } else {
+        triggerAction('Gagal mengirim ayat.');
+      }
+    } catch (e) {
+      triggerAction('Gagal mengirim ayat.');
+    }
+
     setSelectedVerses([]);
     setIsColorPaletteOpen(false);
   };
