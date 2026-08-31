@@ -412,6 +412,7 @@ export default function App() {
           content: String(v.content).replace(/^ \s*/, ''),
           color: String(finalColor),
           note: String(finalNote),
+          version: String(currentVersion.shortName || 'AYT'),
           created_at: new Date().toISOString()
         };
         if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };

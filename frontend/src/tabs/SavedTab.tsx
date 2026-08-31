@@ -160,6 +160,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         item.chapter === lastGroup.chapter &&
         item.color === lastGroup.color &&
         item.note === lastGroup.note &&
+        (item.version || 'AYT') === (lastGroup.version || 'AYT') &&
         (timeDiff < 5000 || sortBy === 'book'); 
 
       if (isSameBatch) {
@@ -413,6 +414,9 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                       <div className="flex items-center gap-1.5 text-gray-900 group-hover:text-gray-700 transition-colors">
                         <span className="text-[12.5px] font-extrabold tracking-tight">
                           {v.book} {v.chapter}:{v.displayVerse}
+                        </span>
+                        <span className="text-[9.5px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-md border border-gray-200/70">
+                          {v.version || 'AYT'}
                         </span>
                         <i className="ph-bold ph-caret-right text-xs text-gray-300 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all"></i>
                       </div>
