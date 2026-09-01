@@ -179,7 +179,8 @@ export default function App() {
     try {
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
-        tg.ready(); tg.expand();
+        tg.ready();
+        tg.expand();
         try { tg.enableClosingConfirmation?.(); } catch (e) {}
         try { if (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')) { tg.requestFullscreen?.(); tg.disableVerticalSwipes?.(); } } catch (e) {}
         try { tg.setHeaderColor?.('#fafafa'); tg.setBackgroundColor?.('#fafafa'); } catch (e) {}
@@ -205,6 +206,22 @@ export default function App() {
         if (firstName) setUserName(firstName);
         if (currentUserId) { setUserId(currentUserId); setIsAdmin(Number(currentUserId) === ADMIN_ID); }
 
+        // Ambil data bacaan terakhir dari Telegram CloudStorage saat app pertama dibuka
+        if (tg.CloudStorage) {
+          tg.CloudStorage.getItem('alkitab_last_read', (error: any, value: string | null) => {
+            if (!error && value) {
+              try {
+                const data = JSON.parse(value);
+                const found = BIBLE_BOOKS.find(
+                  (b) => b.id === data.bookId || b.name === data.bookName
+                );
+                if (found) setCurrentBook(found);
+                if (data.chapter) setCurrentChapter(Number(data.chapter));
+              } catch (e) {}
+            }
+          });
+        }
+
         cleanupInsets = () => {
           tg.offEvent?.('safeAreaChanged', applyInsets);
           tg.offEvent?.('contentSafeAreaChanged', applyInsets);
@@ -212,11 +229,24 @@ export default function App() {
         };
       }
     } catch (error) {}
+    
     fetchHomeData();
     return cleanupInsets;
   }, []);
 
-  
+  // Simpan otomatis setiap kali berpindah kitab atau pasal
+  useEffect(() => {
+    if (!currentBook) return;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.CloudStorage) {
+      const payload = JSON.stringify({
+        bookId: currentBook.id,
+        bookName: currentBook.name,
+        chapter: currentChapter
+      });
+      tg.CloudStorage.setItem('alkitab_last_read', payload);
+    }
+  }, [currentBook, currentChapter]);
 
   useEffect(() => {
     fetchSavedData();
