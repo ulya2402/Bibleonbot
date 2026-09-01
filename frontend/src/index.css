@@ -97,19 +97,23 @@ html, body {
   overflow: hidden;
   border-top-left-radius: 2rem;
   border-top-right-radius: 2rem;
-  transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform;
 }
 
 .sheet-enter {
-  animation: sheetSlideUp 0.28s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .sheet-exit {
-  animation: sheetSlideDown 0.2s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  animation: sheetSlideDown 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 .backdrop-enter {
-  animation: backdropFadeIn 0.25s ease-out forwards;
+  animation: backdropFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .backdrop-exit {
@@ -135,4 +139,67 @@ html, body {
   animation: verseSpotlight 0.6s ease-in-out 3;
   border-radius: 0.75rem;
   will-change: transform, background-color;
+}
+
+@keyframes itemFadeIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-item-fade {
+  animation: itemFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg) translate3d(0, 0, 0); }
+  25% { transform: rotate(-1.5deg) translate3d(0, -0.5px, 0); }
+  75% { transform: rotate(1.5deg) translate3d(0, 0.5px, 0); }
+}
+
+.animate-jiggle {
+  animation: jiggle 0.22s ease-in-out infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@keyframes actionSlideIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(8px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes actionSlideOut {
+  0% {
+    opacity: 0;
+    transform: translate3d(-8px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.action-view-enter {
+  animation: actionSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.action-view-back {
+  animation: actionSlideOut 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }

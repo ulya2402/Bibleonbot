@@ -211,15 +211,25 @@ export class ApiHandler {
                 if (request.method === 'POST') {
                     const body: any = await request.json();
                     const version = body.version || 'AYT';
-                    
+                    const labels = typeof body.labels === 'string' ? body.labels : (Array.isArray(body.labels) ? body.labels.join(', ') : (body.labels || ''));
+                    const isCompletelyEmpty = (!body.color || body.color.trim() === '') && (!body.note || body.note.trim() === '') && (!labels || labels.trim() === '');
+
                     const existing = await this.env.DB.prepare("SELECT id FROM saved_verses WHERE user_id = ? AND book = ? AND chapter = ? AND verse = ?")
                         .bind(body.user_id, body.book, body.chapter, body.verse).first();
+
+                    if (isCompletelyEmpty) {
+                        if (existing) {
+                            await this.env.DB.prepare("DELETE FROM saved_verses WHERE id = ?").bind(existing.id).run();
+                        }
+                        return new Response(JSON.stringify({ success: true, deleted: true }), { headers: corsHeaders });
+                    }
+
                     if (existing) {
-                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, version = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
-                            .bind(body.color, body.content, body.note, version, existing.id).run();
+                        await this.env.DB.prepare("UPDATE saved_verses SET color = ?, content = ?, note = ?, version = ?, labels = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?")
+                            .bind(body.color, body.content, body.note, version, labels, existing.id).run();
                     } else {
-                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
-                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note, version).run();
+                        await this.env.DB.prepare("INSERT INTO saved_verses (user_id, book, chapter, verse, content, color, note, version, labels, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")
+                            .bind(body.user_id, body.book, body.chapter, body.verse, body.content, body.color, body.note, version, labels).run();
                     }
                     return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
                 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, memo } from 'react';
 import type { BibleVersion } from '../types/bible';
+import { parseLabels, getLabelMeta } from '../types/bible';
 
 interface BibleTabProps {
   currentBook: any;
@@ -15,6 +16,7 @@ interface BibleTabProps {
   handleTouchStart: (id: number) => void;
   handleTouchEnd: () => void;
   setViewingNote: (note: any) => void;
+  setViewingLabel?: (data: any) => void;
   goToPrevChapter: () => void;
   goToNextChapter: () => void;
   canGoPrev: boolean;
@@ -37,6 +39,7 @@ function BibleTabComponent({
   handleTouchStart,
   handleTouchEnd,
   setViewingNote,
+  setViewingLabel,
   goToPrevChapter,
   goToNextChapter,
   canGoPrev,
@@ -383,7 +386,7 @@ function BibleTabComponent({
                               book: currentBook.name,
                               chapter: currentChapter,
                               verse: verseData.verse,
-                              content: verseData.content.replace(/^ \s*/, ''),
+                              content: verseData.content.replace(/^¶\s*/, '').replace(/<t\s*\/>/g, ''),
                               note: savedMatch.note
                             });
                           }}
@@ -394,9 +397,39 @@ function BibleTabComponent({
                         </button>
                       )}
                     </div>
-                    <span className={`text-[15px] leading-relaxed font-normal flex-1 text-gray-800 ${highlightClass}`}>
-                      {renderVerseContent(verseData.content)}
-                    </span>
+                    <div className="flex-1">
+                      <span className={`text-[15px] leading-relaxed font-normal block text-gray-800 ${highlightClass}`}>
+                        {renderVerseContent(verseData.content)}
+                      </span>
+                      {parseLabels(savedMatch?.labels).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {parseLabels(savedMatch.labels).map((lbl: string) => {
+                            const meta = getLabelMeta(lbl);
+                            return (
+                              <span
+                                key={lbl}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (setViewingLabel) {
+                                    setViewingLabel({
+                                      book: currentBook.name,
+                                      chapter: currentChapter,
+                                      verse: verseData.verse,
+                                      content: verseData.content.replace(/^¶\s*/, '').replace(/<t\s*\/>/g, ''),
+                                      labels: savedMatch.labels
+                                    });
+                                  }
+                                }}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color} active:scale-95 transition-transform select-none`}
+                              >
+                                <i className={`ph-bold ${meta.icon} text-xs`}></i>
+                                <span>{lbl}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

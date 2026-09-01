@@ -10,5 +10,6 @@ CREATE TABLE saved_verses (
     color TEXT,
     note TEXT,
     version TEXT DEFAULT 'AYT',
+    labels TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

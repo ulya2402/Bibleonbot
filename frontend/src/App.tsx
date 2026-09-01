@@ -4,8 +4,14 @@ import HomeTab from './tabs/HomeTab';
 import BibleTab from './tabs/BibleTab';
 import SavedTab from './tabs/SavedTab';
 import AdminTab from './tabs/AdminTab';
-import { BIBLE_LANGUAGES, ALL_BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION,  } from './types/bible';
-import type { BibleVersion } from './types/bible';
+import { 
+  BIBLE_LANGUAGES, 
+  ALL_BIBLE_VERSIONS, 
+  DEFAULT_BIBLE_VERSION,
+  PRESET_LABELS,
+  parseLabels
+} from './types/bible';
+import type { BibleVersion, VerseLabel } from './types/bible';
 
 const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
 const ADMIN_ID = 513342558;
@@ -84,6 +90,24 @@ export default function App() {
   const [isNoteSheetClosing, setIsNoteSheetClosing] = useState(false);
   const [noteSheetData, setNoteSheetData] = useState<any>(null);
   const [noteInput, setNoteInput] = useState('');
+  const [isLabelSheetOpen, setIsLabelSheetOpen] = useState(false);
+  const [isLabelSheetClosing, setIsLabelSheetClosing] = useState(false);
+  const [labelSheetData, setLabelSheetData] = useState<any>(null);
+  const [selectedLabelsForSheet, setSelectedLabelsForSheet] = useState<string[]>([]);
+  const [customLabelInput, setCustomLabelInput] = useState('');
+  const [isEditingCustomLabels, setIsEditingCustomLabels] = useState(false);
+  const [availableCustomLabels, setAvailableCustomLabels] = useState<string[]>(() => {
+    try {
+      const s = localStorage.getItem('bible_custom_labels');
+      return s ? JSON.parse(s) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const customLabelHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isCustomLabelHeld = useRef(false);
+
   const [isColorPaletteOpen, setIsColorPaletteOpen] = useState(false);
 
   const [recentColors, setRecentColors] = useState<string[]>(() => {
@@ -156,6 +180,7 @@ export default function App() {
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
         tg.ready(); tg.expand();
+        try { tg.enableClosingConfirmation?.(); } catch (e) {}
         try { if (!tg.isVersionAtLeast || tg.isVersionAtLeast('8.0')) { tg.requestFullscreen?.(); tg.disableVerticalSwipes?.(); } } catch (e) {}
         try { tg.setHeaderColor?.('#fafafa'); tg.setBackgroundColor?.('#fafafa'); } catch (e) {}
 
@@ -221,7 +246,9 @@ export default function App() {
     const tg = (window as any).Telegram?.WebApp;
     if (!tg?.BackButton) return;
     const handleBack = () => {
-      if (isNoteSheetOpen) {
+      if (isLabelSheetOpen) {
+        closeLabelSheet();
+      } else if (isNoteSheetOpen) {
         closeNoteSheet();
       } else if (isColorPaletteOpen) {
         setIsColorPaletteOpen(false);
@@ -229,7 +256,7 @@ export default function App() {
         setSelectedVerses([]);
       }
     };
-    if (isNoteSheetOpen || isColorPaletteOpen || selectedVerses.length > 0) {
+    if (isLabelSheetOpen || isNoteSheetOpen || isColorPaletteOpen || selectedVerses.length > 0) {
       tg.BackButton.show();
       tg.onEvent('backButtonClicked', handleBack);
     } else {
@@ -240,7 +267,7 @@ export default function App() {
       tg.BackButton.hide();
       tg.offEvent('backButtonClicked', handleBack);
     };
-  }, [isNoteSheetOpen, isColorPaletteOpen, selectedVerses.length]);
+  }, [isLabelSheetOpen, isNoteSheetOpen, isColorPaletteOpen, selectedVerses.length]);
 
   useEffect(() => {
     if (currentVersion.testamentScope === 'NT' && currentBook.test === 'PL') {
@@ -270,14 +297,14 @@ export default function App() {
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.sheet-container') && selectedVerses.length > 0 && !isNoteSheetOpen) {
+      if (!target.closest('.verse-item') && !target.closest('.action-menu') && !target.closest('.sheet-container') && selectedVerses.length > 0 && !isNoteSheetOpen && !isLabelSheetOpen) {
         setSelectedVerses([]);
         setIsColorPaletteOpen(false);
       }
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [selectedVerses, isNoteSheetOpen]);
+  }, [selectedVerses, isNoteSheetOpen, isLabelSheetOpen]);
 
   const handleVerseSelect = (verseId: number) => {
     setSelectedVerses(prev => prev.includes(verseId) ? prev.filter(id => id !== verseId) : [...prev, verseId]);
@@ -358,24 +385,132 @@ export default function App() {
     setIsNoteSheetClosing(false);
   };
 
-  const saveVerseData = async (colorParam: string | null, noteParam: string | null) => {
-    if (noteParam !== null && noteSheetData && noteParam.trim() === (noteSheetData.note || '').trim()) {
-      closeNoteSheet();
+  const openLabelSheet = (explicitData?: any) => {
+    if (explicitData) {
+      const parsed = parseLabels(explicitData.labels);
+      setLabelSheetData(explicitData);
+      setSelectedLabelsForSheet(parsed);
+      setCustomLabelInput('');
+      setIsLabelSheetOpen(true);
+      setIsLabelSheetClosing(false);
       return;
     }
+    if (selectedVerses.length === 0) return;
+    const selectedVerseObjects = bibleVerses.filter(bv => selectedVerses.includes(bv.id));
+    const verseNumbers = selectedVerseObjects.map(v => v.verse).join(', ');
+    const combinedContent = selectedVerseObjects.map(v => v.content.replace(/^¶\s*/, '').replace(/<t\s*\/>/g, '').trim()).join(' ');
 
+    const labelSet = new Set<string>();
+    selectedVerseObjects.forEach(v => {
+      const match = savedVerses.find((sv: any) =>
+        (String(sv.book).toLowerCase() === String(currentBook.name).toLowerCase() || String(sv.book).toLowerCase() === String(currentBook.id).toLowerCase()) &&
+        Number(sv.chapter) === Number(currentChapter) &&
+        Number(sv.verse) === Number(v.verse)
+      );
+      if (match && match.labels) {
+        parseLabels(match.labels).forEach((lbl: string) => labelSet.add(lbl));
+      }
+    });
+
+    const currentLabels = Array.from(labelSet);
+    setLabelSheetData({
+      book: currentBook.name,
+      chapter: currentChapter,
+      verse: verseNumbers,
+      content: combinedContent,
+      labels: currentLabels
+    });
+    setSelectedLabelsForSheet(currentLabels);
+    setCustomLabelInput('');
+    setIsLabelSheetOpen(true);
+    setIsLabelSheetClosing(false);
+  };
+
+  const closeLabelSheet = () => {
+    setIsLabelSheetClosing(true);
+    setTimeout(() => {
+      setIsLabelSheetOpen(false);
+      setIsLabelSheetClosing(false);
+      setIsEditingCustomLabels(false);
+      setLabelSheetData(null);
+      setSelectedLabelsForSheet([]);
+      setCustomLabelInput('');
+    }, 250);
+  };
+
+  const handleCustomLabelPressStart = () => {
+    isCustomLabelHeld.current = false;
+    customLabelHoldTimer.current = setTimeout(() => {
+      isCustomLabelHeld.current = true;
+      if (navigator.vibrate) navigator.vibrate(40);
+      setIsEditingCustomLabels(true);
+    }, 450);
+  };
+
+  const handleCustomLabelPressEnd = () => {
+    if (customLabelHoldTimer.current) clearTimeout(customLabelHoldTimer.current);
+  };
+
+  const handleDeleteCustomLabel = (labelName: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const tg = (window as any).Telegram?.WebApp;
+    const performDelete = () => {
+      const next = availableCustomLabels.filter(c => c.toLowerCase() !== labelName.toLowerCase());
+      setAvailableCustomLabels(next);
+      try { localStorage.setItem('bible_custom_labels', JSON.stringify(next)); } catch (err) {}
+      setSelectedLabelsForSheet(prev => prev.filter(l => l.toLowerCase() !== labelName.toLowerCase()));
+      triggerAction('Label kustom dihapus!');
+    };
+
+    if (tg && typeof tg.showConfirm === 'function') {
+      tg.showConfirm(`Hapus label kustom "${labelName}"?`, (confirmed: boolean) => {
+        if (confirmed) performDelete();
+      });
+    } else {
+      if (confirm(`Hapus label kustom "${labelName}"?`)) {
+        performDelete();
+      }
+    }
+  };
+
+  const handleToggleLabel = (labelName: string) => {
+    setSelectedLabelsForSheet(prev => 
+      prev.includes(labelName) ? prev.filter(l => l !== labelName) : [...prev, labelName]
+    );
+  };
+
+  const handleAddCustomLabel = () => {
+    const trimmed = customLabelInput.trim();
+    if (!trimmed) return;
+    if (!selectedLabelsForSheet.includes(trimmed)) {
+      setSelectedLabelsForSheet(prev => [...prev, trimmed]);
+    }
+    if (!PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === trimmed.toLowerCase()) && !availableCustomLabels.includes(trimmed)) {
+      const updated = [...availableCustomLabels, trimmed];
+      setAvailableCustomLabels(updated);
+      try { localStorage.setItem('bible_custom_labels', JSON.stringify(updated)); } catch (e) {}
+    }
+    setCustomLabelInput('');
+  };
+
+  const saveVerseData = async (
+    colorParam: string | null = null,
+    noteParam: string | null = null,
+    labelsParam: string[] | string | null = null
+  ) => {
     let targetVerses = bibleVerses.filter(v => selectedVerses.includes(v.id));
-    const targetBookName = noteSheetData?.book || currentBook.name;
-    const targetChapterNum = noteSheetData?.chapter || currentChapter;
+    const targetBookName = labelSheetData?.book || noteSheetData?.book || currentBook.name;
+    const targetChapterNum = labelSheetData?.chapter || noteSheetData?.chapter || currentChapter;
 
-    if (targetVerses.length === 0 && noteSheetData) {
-      const singleVerse = bibleVerses.find(v => String(v.verse) === String(noteSheetData.verse));
+    if (targetVerses.length === 0 && (labelSheetData || noteSheetData)) {
+      const activeSheetData = labelSheetData || noteSheetData;
+      const singleVerse = bibleVerses.find(v => String(v.verse) === String(activeSheetData.verse));
       if (singleVerse) {
         targetVerses = [singleVerse];
       } else {
         targetVerses = [{
-          verse: noteSheetData.verse,
-          content: noteSheetData.content
+          verse: activeSheetData.verse,
+          content: activeSheetData.content
         }];
       }
     }
@@ -394,12 +529,35 @@ export default function App() {
 
     try {
       for (const v of targetVerses) {
-        const existingIndex = newSavedVerses.findIndex(sv => String(sv.book) === String(targetBookName) && String(sv.chapter) === String(targetChapterNum) && String(sv.verse) === String(v.verse));
+        const existingIndex = newSavedVerses.findIndex(
+          sv => String(sv.book) === String(targetBookName) &&
+                String(sv.chapter) === String(targetChapterNum) &&
+                String(sv.verse) === String(v.verse)
+        );
         const existing = existingIndex >= 0 ? newSavedVerses[existingIndex] : null;
         const finalColor = colorParam !== null ? colorParam : (existing?.color || '');
         const finalNote = noteParam !== null ? noteParam : (existing?.note || '');
+        const finalLabels = labelsParam !== null 
+          ? (Array.isArray(labelsParam) ? labelsParam.join(', ') : labelsParam)
+          : (existing?.labels || '');
 
-        if (existing && existing.color === finalColor && existing.note === finalNote) {
+        if (existing && existing.color === finalColor && existing.note === finalNote && existing.labels === finalLabels) {
+          continue;
+        }
+
+        const isCompletelyEmpty = (!finalColor || finalColor.trim() === '') && (!finalNote || finalNote.trim() === '') && (!finalLabels || finalLabels.trim() === '');
+
+        if (isCompletelyEmpty) {
+          if (existingIndex >= 0) {
+            newSavedVerses.splice(existingIndex, 1);
+          }
+          if (existing?.id) {
+            fetchPromises.push(
+              fetch(`${API_URL}/saved-verses?id=${existing.id}&t=${Date.now()}`, {
+                method: 'DELETE'
+              })
+            );
+          }
           continue;
         }
 
@@ -409,12 +567,14 @@ export default function App() {
           book: String(targetBookName),
           chapter: Number(targetChapterNum),
           verse: Number(v.verse),
-          content: String(v.content).replace(/^ \s*/, ''),
+          content: String(v.content).replace(/^¶\s*/, '').replace(/<t\s*\/>/g, ''),
           color: String(finalColor),
           note: String(finalNote),
           version: String(currentVersion.shortName || 'AYT'),
+          labels: String(finalLabels),
           created_at: new Date().toISOString()
         };
+
         if (existingIndex >= 0) newSavedVerses[existingIndex] = { ...newSavedVerses[existingIndex], ...payload };
         else newSavedVerses.unshift({ ...payload, id: Date.now() + Math.random() });
 
@@ -428,15 +588,21 @@ export default function App() {
       }
 
       setSavedVerses(newSavedVerses);
-      triggerAction(noteParam !== null ? (noteParam === '' ? 'Catatan dihapus!' : 'Catatan tersimpan!') : colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
       
-      if (noteParam !== null) {
+      if (labelsParam !== null) {
+        triggerAction('Label diperbarui!');
+        closeLabelSheet();
+        setSelectedVerses([]);
+      } else if (noteParam !== null) {
+        triggerAction(noteParam === '' ? 'Catatan dihapus!' : 'Catatan tersimpan!');
         closeNoteSheet();
         setNoteInput('');
         setSelectedVerses([]);
+      } else {
+        triggerAction(colorParam === '' ? 'Warna dihapus!' : 'Warna diterapkan!');
       }
-      setIsColorPaletteOpen(false);
 
+      setIsColorPaletteOpen(false);
       if (fetchPromises.length > 0) {
         await Promise.all(fetchPromises);
       }
@@ -690,6 +856,7 @@ export default function App() {
             handleTouchStart={handleTouchStart}
             handleTouchEnd={handleTouchEnd}
             setViewingNote={openNoteSheet}
+            setViewingLabel={openLabelSheet}
             goToPrevChapter={goToPrevChapter}
             goToNextChapter={goToNextChapter}
             canGoPrev={canGoPrev}
@@ -698,6 +865,7 @@ export default function App() {
             setHighlightedVerse={setHighlightedVerse}
           />
         )}
+
         {activeTab === 'saved' && <SavedTab savedVerses={savedVerses} fetchSaved={fetchSavedData} onNavigateToVerse={handleNavigateToVerse} />}
         {activeTab === 'admin' && <AdminTab triggerAction={triggerAction} refreshHomeData={fetchHomeData} news={news} communities={communities} channels={channels} dailyVerse={dailyVerse} setActiveTab={setActiveTab} />}
       </main>
@@ -805,9 +973,9 @@ export default function App() {
               ) : (
                 <div className="grid grid-cols-5 gap-2">
                   {Array.from({ length: tempSelectedBook.chapters }, (_, i) => i + 1).map((ch) => (
-                    <button
-                       key={ch}
-                       onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }}
+                    <button 
+                       key={ch} 
+                       onClick={() => { setCurrentBook(tempSelectedBook); setCurrentChapter(ch); setIsSelectorOpen(false); }} 
                        className={`aspect-square flex items-center justify-center rounded-xl font-bold text-sm transition border ${currentBook.id === tempSelectedBook.id && currentChapter === ch ? 'bg-[#1a1d23] text-white border-[#1a1d23] shadow-md scale-105' : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300'}`}
                     >
                       {ch}
@@ -962,23 +1130,226 @@ export default function App() {
         </div>
       )}
 
+      {isLabelSheetOpen && (
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end pointer-events-auto">
+          <div 
+            onClick={closeLabelSheet}
+            className={`fixed inset-0 bg-black/45 transition-colors ${
+              isLabelSheetClosing ? 'backdrop-exit' : 'backdrop-enter'
+            }`}
+          />
+          <div 
+            className={`sheet-container relative w-full max-w-[480px] mx-auto bg-[#f8f9fa] h-[75vh] max-h-[640px] flex flex-col shadow-[0_-12px_36px_rgba(0,0,0,0.15)] border-t border-x border-gray-200 ${
+              isLabelSheetClosing ? 'sheet-exit' : 'sheet-enter'
+            }`}
+          >
+            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mt-3 mb-1 shrink-0"></div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0 bg-[#f8f9fa]">
+              <button 
+                onClick={closeLabelSheet}
+                className="text-[14px] font-medium text-gray-500 hover:text-gray-900 active:scale-90 transition-transform py-1 px-1 select-none"
+              >
+                Batal
+              </button>
+              
+              <div className="flex items-center gap-1.5 px-3.5 py-1 bg-white border border-gray-200/90 rounded-full shadow-2xs">
+                <i className="ph-fill ph-tag text-gray-900 text-xs"></i>
+                <span className="text-[12.5px] font-extrabold text-gray-900 tracking-tight">
+                  {labelSheetData ? `${labelSheetData.book} ${labelSheetData.chapter}:${labelSheetData.verse}` : 'Kelola Label'}
+                </span>
+              </div>
+
+              <button 
+                onClick={() => saveVerseData(null, null, selectedLabelsForSheet)}
+                className="px-4 py-1.5 bg-gray-900 text-white rounded-full text-[13px] font-bold hover:bg-black active:scale-90 transition-transform shadow-xs select-none"
+              >
+                Selesai
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 pb-36 no-scrollbar">
+              {labelSheetData?.content && (
+                <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs">
+                  <div className="flex items-center gap-1.5 mb-1 text-gray-400">
+                    <i className="ph-bold ph-quotes text-xs"></i>
+                    <span className="text-[9.5px] font-extrabold uppercase tracking-wider">Ayat Referensi</span>
+                  </div>
+                  <p className="text-[13.5px] text-gray-800 leading-relaxed font-normal select-none pl-0.5">
+                    "{labelSheetData.content}"
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-white border border-gray-200/90 rounded-2xl p-3.5 shadow-2xs space-y-2.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                  Buat Label Baru
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <i className="ph-bold ph-plus absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                    <input
+                      type="text"
+                      value={customLabelInput}
+                      onChange={(e) => setCustomLabelInput(e.target.value)}
+                      onFocus={(e) => {
+                        setTimeout(() => {
+                          e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 250);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomLabel();
+                        }
+                      }}
+                      placeholder="Ketik label baru..."
+                      className="w-full bg-[#f4f5f7] border border-transparent focus:border-gray-300 focus:bg-white rounded-xl py-2.5 pl-9 pr-3.5 text-[13px] font-medium text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomLabel}
+                    disabled={!customLabelInput.trim()}
+                    className="px-4 py-2.5 bg-gray-900 text-white rounded-xl text-[12px] font-bold disabled:opacity-30 disabled:pointer-events-none active:scale-95 transition-transform"
+                  >
+                    Tambah
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                    Pilih Label
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedLabelsForSheet.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLabelsForSheet([])}
+                        className="text-[10.5px] font-bold text-rose-600 hover:text-rose-700 active:scale-95 transition-transform"
+                      >
+                        Hapus Semua
+                      </button>
+                    )}
+                    <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                      {selectedLabelsForSheet.length} Terpilih
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {PRESET_LABELS.map((preset: VerseLabel) => {
+                    const isChecked = selectedLabelsForSheet.includes(preset.name);
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleToggleLabel(preset.name)}
+                        className={`p-3 rounded-xl border flex items-center justify-between transition-all duration-150 active:scale-95 text-left ${
+                          isChecked
+                            ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                            : 'bg-gray-50/70 hover:bg-gray-100/80 text-gray-800 border-gray-200/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <i className={`ph-bold ${preset.icon} text-base ${isChecked ? 'text-white' : 'text-gray-600'}`}></i>
+                          <span className="text-[12.5px] font-bold">{preset.name}</span>
+                        </div>
+                        {isChecked && <i className="ph-bold ph-check text-xs text-white"></i>}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {availableCustomLabels.filter(c => !PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === c.toLowerCase())).length > 0 && (
+                  <div className="pt-2 border-t border-gray-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">
+                        Label Kustom
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingCustomLabels(prev => !prev)}
+                        className={`text-[10.5px] font-bold transition-colors ${
+                          isEditingCustomLabels ? 'text-gray-900' : 'text-gray-400 hover:text-gray-700'
+                        }`}
+                      >
+                        {isEditingCustomLabels ? 'Selesai' : 'Kelola'}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availableCustomLabels
+                        .filter(c => !PRESET_LABELS.some((p: VerseLabel) => p.name.toLowerCase() === c.toLowerCase()))
+                        .map(cLabel => {
+                          const isChecked = selectedLabelsForSheet.includes(cLabel);
+                          return (
+                            <div
+                              key={cLabel}
+                              onTouchStart={handleCustomLabelPressStart}
+                              onTouchEnd={handleCustomLabelPressEnd}
+                              onMouseDown={handleCustomLabelPressStart}
+                              onMouseUp={handleCustomLabelPressEnd}
+                              onMouseLeave={handleCustomLabelPressEnd}
+                              onClick={() => {
+                                if (isCustomLabelHeld.current) {
+                                  isCustomLabelHeld.current = false;
+                                  return;
+                                }
+                                if (isEditingCustomLabels) {
+                                  handleDeleteCustomLabel(cLabel);
+                                  return;
+                                }
+                                handleToggleLabel(cLabel);
+                              }}
+                              className={`relative cursor-pointer select-none px-3 py-1.5 rounded-xl border text-[11.5px] font-bold flex items-center gap-1.5 transition-all active:scale-95 ${
+                                isEditingCustomLabels ? 'animate-jiggle border-rose-300 bg-rose-50/50 text-rose-900 pr-2.5' :
+                                isChecked
+                                  ? 'bg-gray-900 text-white border-gray-900 shadow-xs'
+                                  : 'bg-[#f4f5f7] text-gray-800 border-gray-200/90 hover:bg-gray-200/60'
+                              }`}
+                            >
+                              <i className="ph-bold ph-tag text-xs"></i>
+                              <span>{cLabel}</span>
+                              {isChecked && !isEditingCustomLabels && <i className="ph-bold ph-check text-[10px]"></i>}
+                              {isEditingCustomLabels && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDeleteCustomLabel(cLabel, e)}
+                                  className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center hover:bg-rose-700 transition-colors ml-0.5"
+                                >
+                                  <i className="ph-bold ph-x text-[9px]"></i>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-1.75rem)] max-w-[430px] bg-[#1a1c22]/90 backdrop-blur-2xl text-white rounded-[2rem] shadow-[0_20px_50px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] p-2 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          selectedVerses.length > 0 && !isNoteSheetOpen ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
+        className={`action-menu fixed left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-[430px] bg-[#1a1c22]/95 backdrop-blur-2xl text-white rounded-[2rem] shadow-[0_20px_50px_-5px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] p-2 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          selectedVerses.length > 0 && !isNoteSheetOpen && !isLabelSheetOpen ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-8 scale-95 pointer-events-none'
         }`}
         style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.25rem)' }}
       >
         {!isColorPaletteOpen ? (
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1">
+          <div className="action-view-enter flex items-center justify-between gap-1.5 px-1 w-full">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1 py-0.5">
               <div
                 onTouchStart={handleColorPressStart}
                 onTouchEnd={handleColorPressEnd}
                 onMouseDown={handleColorPressStart}
                 onMouseUp={handleColorPressEnd}
                 onMouseLeave={handleColorPressEnd}
-                className="flex items-center gap-1.5 bg-white/[0.07] hover:bg-white/[0.1] p-1.5 rounded-full transition-all duration-200 select-none"
+                className="flex items-center gap-1.5 bg-white/[0.07] hover:bg-white/[0.1] p-1.5 rounded-full transition-all duration-200 select-none shrink-0"
               >
                 {recentColors.map((colorId, idx) => {
                   const colorObj = ALL_HIGHLIGHT_COLORS.find(c => c.id === colorId) || ALL_HIGHLIGHT_COLORS[0];
@@ -987,7 +1358,7 @@ export default function App() {
                     <button
                       key={colorId}
                       onClick={(e) => handleColorClick(e, colorId)}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 active:scale-75 hover:scale-115 relative ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 active:scale-75 hover:scale-115 relative shrink-0 ${
                         isLatest ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1a1c22] shadow-[0_0_12px_rgba(255,255,255,0.3)]' : 'opacity-85 hover:opacity-100'
                       }`}
                       title={isLatest ? 'Warna Terakhir Digunakan' : undefined}
@@ -1002,7 +1373,7 @@ export default function App() {
                     e.stopPropagation();
                     setIsColorPaletteOpen(true);
                   }}
-                  className="w-6 h-7 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-75"
+                  className="w-6 h-7 flex items-center justify-center text-gray-400 hover:text-white transition-all active:scale-75 shrink-0"
                   title="Pilihan Warna Lainnya"
                 >
                   <i className="ph-bold ph-caret-right text-xs"></i>
@@ -1010,7 +1381,7 @@ export default function App() {
               </div>
 
               <div
-                className={`overflow-hidden flex items-center transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                className={`overflow-hidden flex items-center transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
                   hasSelectedHighlight ? 'max-w-[56px] opacity-100 scale-100 translate-x-0' : 'max-w-0 opacity-0 scale-75 -translate-x-2 pointer-events-none'
                 }`}
               >
@@ -1019,7 +1390,7 @@ export default function App() {
                     e.stopPropagation();
                     saveVerseData('', null);
                   }}
-                  className="flex flex-col items-center justify-center w-11 h-11 hover:bg-rose-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-rose-300 hover:text-rose-200"
+                  className="flex flex-col items-center justify-center w-11 h-11 hover:bg-rose-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-rose-300 hover:text-rose-200 shrink-0"
                   title="Hapus Warna"
                 >
                   <i className="ph-bold ph-prohibit text-lg"></i>
@@ -1027,14 +1398,25 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="w-px h-5 bg-white/10 mx-0.5"></div>
+              <div className="w-px h-5 bg-white/10 mx-0.5 shrink-0"></div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLabelSheet();
+                }}
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white shrink-0"
+              >
+                <i className="ph-bold ph-tag text-lg"></i>
+                <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Label</span>
+              </button>
 
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   openNoteSheet();
                 }}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white"
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white shrink-0"
               >
                 <i className="ph-bold ph-pencil-simple text-lg"></i>
                 <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Catat</span>
@@ -1045,7 +1427,7 @@ export default function App() {
                   e.stopPropagation();
                   handleCopy();
                 }}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white"
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-white/[0.08] rounded-2xl transition-all duration-200 active:scale-75 text-gray-300 hover:text-white shrink-0"
               >
                 <i className="ph-bold ph-copy text-lg"></i>
                 <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Salin</span>
@@ -1056,29 +1438,29 @@ export default function App() {
                   e.stopPropagation();
                   handleShare();
                 }}
-                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-sky-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-sky-400 hover:text-sky-300"
+                className="flex flex-col items-center justify-center w-11 h-11 hover:bg-sky-500/15 rounded-2xl transition-all duration-200 active:scale-75 text-sky-400 hover:text-sky-300 shrink-0"
               >
                 <i className="ph-bold ph-telegram-logo text-lg"></i>
                 <span className="text-[8.5px] font-bold tracking-wide mt-0.5">Share</span>
               </button>
             </div>
 
-            <div className="flex items-center">
-              <div className="w-px h-5 bg-white/10 mr-1.5"></div>
+            <div className="flex items-center shrink-0 pl-1 border-l border-white/10">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedVerses([]);
                   setIsColorPaletteOpen(false);
                 }}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all duration-200 active:scale-75"
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded-full text-gray-400 hover:text-white transition-all duration-200 active:scale-75 shrink-0"
+                title="Tutup"
               >
                 <i className="ph-bold ph-x text-base"></i>
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between px-2 py-1 animate-[fadeIn_0.2s_cubic-bezier(0.16,1,0.3,1)] gap-3">
+          <div className="action-view-back flex items-center justify-between px-2 py-1 gap-3 w-full">
             <button
               type="button"
               onClick={(e) => {
@@ -1122,7 +1504,7 @@ export default function App() {
         )}
       </div>
 
-      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
+      <nav className={`absolute left-1/2 -translate-x-1/2 bg-white border border-gray-200 rounded-[2rem] px-6 py-3.5 flex justify-center gap-8 items-center z-40 w-max shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)] transition-all duration-300 ${(selectedVerses.length > 0 || isNoteSheetOpen || isLabelSheetOpen || !isNavVisible) ? 'opacity-0 invisible translate-y-24 pointer-events-none' : 'opacity-100 visible translate-y-0'}`} style={{ bottom: 'calc(max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)) + 1.5rem)' }}>
         <button onClick={() => switchActiveTab('home')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'home' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'home' ? 'ph-fill' : 'ph'} ph-house text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Home</span></button>
         <button onClick={() => switchActiveTab('bible')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'bible' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'bible' ? 'ph-fill' : 'ph'} ph-book-open-text text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Alkitab</span></button>
         <button onClick={() => switchActiveTab('saved')} className={`flex flex-col items-center gap-1 transition ${activeTab === 'saved' ? 'text-gray-900 scale-110' : 'text-gray-400 hover:text-gray-600'}`}><i className={`${activeTab === 'saved' ? 'ph-fill' : 'ph'} ph-bookmark-simple text-2xl`}></i><span className="text-[9px] font-extrabold tracking-wider uppercase">Simpan</span></button>

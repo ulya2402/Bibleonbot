@@ -53,8 +53,10 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
               <div className="flex items-center gap-2 mb-2">
                   {!imgError ? (
                     <img 
-                      src="/logo.png" 
+                      src="./logo.png" 
                       alt="Logo" 
+                      loading="eager"
+                      decoding="sync"
                       onError={() => setImgError(true)}
                       className="w-5 h-5 object-contain shrink-0" 
                     />
@@ -182,7 +184,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
           {news.slice(0, visibleNews).map((n: any, i: number) => {
             const isArticle = n.category.toLowerCase().includes('artikel');
             return (
-              <div key={i} onClick={() => window.open(n.link, '_blank')} className="flex gap-4 items-center bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-gray-300 transition group">
+              <div key={n.id || i} onClick={() => window.open(n.link, '_blank')} className="animate-item-fade flex gap-4 items-center bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-gray-300 transition-all duration-150 active:scale-[0.985] group">
                 <img src={n.image_url} alt="Cover" className="w-20 h-20 rounded-xl object-cover" />
                 <div className="flex-1 py-1 pr-2">
                   <span className={`text-[9px] font-extrabold uppercase tracking-widest mb-1 block ${isArticle ? 'text-blue-600' : 'text-orange-600'}`}>{n.category}</span>
@@ -200,7 +202,7 @@ export default function HomeTab({ dailyVerse, communities, channels, news, userN
         </div>
 
         {news.length > visibleNews && (
-          <button onClick={() => setVisibleNews(prev => prev + 5)} className="w-full py-3 text-[11px] font-bold uppercase tracking-wide text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition flex justify-center items-center gap-1.5 shadow-sm">
+          <button onClick={() => setVisibleNews(prev => prev + 5)} className="w-full py-3 text-[11px] font-bold uppercase tracking-wide text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all flex justify-center items-center gap-1.5 shadow-sm">
             <span>Tampilkan Berita Lainnya</span>
             <i className="ph-bold ph-arrow-down"></i>
           </button>

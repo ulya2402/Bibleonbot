@@ -1,11 +1,13 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { parseLabels, getLabelMeta } from '../types/bible';
 
 const API_URL = 'https://bibleonbot-backend.rchtxtdev.workers.dev/api';
 
 export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVerse }: any) {
-  const [viewMode, setViewMode] = useState<'activity' | 'notes' | 'highlights'>('activity');
+  const [viewMode, setViewMode] = useState<'activity' | 'notes' | 'highlights' | 'labels'>('activity');
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [colorFilter, setColorFilter] = useState<string>('all');
+  const [labelFilter, setLabelFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'book'>('newest');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -92,17 +94,26 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
   };
 
   const filteredVerses = useMemo(() => {
-    const visibleItems = savedVerses.filter((v: any) => !hiddenIds.includes(v.id));
+    const visibleItems = savedVerses.filter((v: any) => 
+      !hiddenIds.includes(v.id) && 
+      (Boolean(v.color && v.color.trim() !== '') || Boolean(v.note && v.note.trim() !== '') || Boolean(v.labels && v.labels.trim() !== ''))
+    );
 
     let tabItems = visibleItems;
     if (viewMode === 'notes') {
       tabItems = visibleItems.filter((v: any) => v.note && v.note.trim() !== '');
     } else if (viewMode === 'highlights') {
       tabItems = visibleItems.filter((v: any) => v.color && v.color.trim() !== '');
+    } else if (viewMode === 'labels') {
+      tabItems = visibleItems.filter((v: any) => v.labels && v.labels.trim() !== '');
     }
 
     if (colorFilter !== 'all') {
       tabItems = tabItems.filter((v: any) => v.color === colorFilter);
+    }
+
+    if (labelFilter !== 'all') {
+      tabItems = tabItems.filter((v: any) => parseLabels(v.labels).includes(labelFilter));
     }
 
     if (timeFilter !== 'all') {
@@ -203,12 +214,14 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
 
   const totalNotesCount = useMemo(() => savedVerses.filter((v: any) => v.note && v.note.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
   const totalHighlightsCount = useMemo(() => savedVerses.filter((v: any) => v.color && v.color.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
+  const totalLabelsCount = useMemo(() => savedVerses.filter((v: any) => v.labels && v.labels.trim() !== '' && !hiddenIds.includes(v.id)).length, [savedVerses, hiddenIds]);
 
-  const hasActiveFilter = timeFilter !== 'all' || colorFilter !== 'all' || sortBy !== 'newest';
+  const hasActiveFilter = timeFilter !== 'all' || colorFilter !== 'all' || labelFilter !== 'all' || sortBy !== 'newest';
 
   const resetFilters = () => {
     setTimeFilter('all');
     setColorFilter('all');
+    setLabelFilter('all');
     setSortBy('newest');
   };
 
@@ -237,7 +250,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
       <div className="flex bg-[#f0f2f5] p-1 rounded-2xl mb-4">
         <button
           onClick={() => setViewMode('activity')}
-          className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
             viewMode === 'activity' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
           }`}
         >
@@ -245,7 +258,7 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         </button>
         <button
           onClick={() => setViewMode('notes')}
-          className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
             viewMode === 'notes' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
           }`}
         >
@@ -253,11 +266,19 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
         </button>
         <button
           onClick={() => setViewMode('highlights')}
-          className={`flex-1 py-2 rounded-xl text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
             viewMode === 'highlights' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
           }`}
         >
           Sorotan ({totalHighlightsCount})
+        </button>
+        <button
+          onClick={() => setViewMode('labels')}
+          className={`flex-1 py-2 rounded-xl text-[11px] sm:text-[12px] font-bold transition-all duration-150 active:scale-95 ${
+            viewMode === 'labels' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-400 hover:text-gray-700'
+          }`}
+        >
+          Label ({totalLabelsCount})
         </button>
       </div>
 
@@ -445,6 +466,23 @@ export default function SavedTab({ savedVerses = [], fetchSaved, onNavigateToVer
                         </span>
                       ))}
                     </p>
+
+                    {parseLabels(v.labels).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {parseLabels(v.labels).map((lbl: string) => {
+                          const meta = getLabelMeta(lbl);
+                          return (
+                            <span
+                              key={lbl}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold border ${meta.color}`}
+                            >
+                              <i className={`ph-bold ${meta.icon} text-xs`}></i>
+                              <span>{lbl}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {v.note && (
                       <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-start gap-2">
