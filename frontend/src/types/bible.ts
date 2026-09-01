@@ -129,7 +129,7 @@ export const PRESET_LABELS: VerseLabel[] = [
   { id: 'Dorongan', name: 'Dorongan', icon: 'ph-lightning', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
   { id: 'Kasih', name: 'Kasih', icon: 'ph-heart', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
   { id: 'Doa', name: 'Doa', icon: 'ph-chat-circle-dots', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' },
-  { id: 'Janji Allah', name: 'Janji Allah', icon: 'ph-crown', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' }
+  { id: 'Janji Allah', name: 'Janji Allah', icon: 'ph-cross', color: 'bg-[#f4f5f7] text-gray-800 border-gray-200/90' }
 ];
 
 export const parseLabels = (raw: any): string[] => {

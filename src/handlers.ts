@@ -85,7 +85,7 @@ export class BotHandler {
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: 'Alkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah. Tunggu apa lagi? Tetap terhubung dengan Firman Tuhan.'
+                            text: 'Alkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah.'
                         }
                     ]
                 },
@@ -129,7 +129,7 @@ export class BotHandler {
 
             const sent = await this.bot.sendRichMessage(chatId, { blocks });
             if (!sent) {
-                const fallbackText = `<b>Selamat datang saudara ${escapeHtml(userName)}</b>\n\nAlkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah. Tunggu apa lagi? Tetap terhubung dengan Firman Tuhan.\n\nSilakan tekan tombol di bawah ini untuk membuka Alkitab:`;
+                const fallbackText = `<b>Selamat datang saudara ${escapeHtml(userName)}</b>\n\nAlkitab ID adalah Alkitab yang dapat diakses langsung melalui Telegram Mini App secara gratis. Nikmati berbagai fitur menarik serta pilihan terjemahan Alkitab untuk membantu Anda membaca dan memahami Firman Tuhan dengan lebih mudah.\n\nSilakan tekan tombol di bawah ini untuk membuka Alkitab:`;
                 const replyMarkup = {
                     inline_keyboard: [
                         [{ text: 'Buka Alkitab', url: directAppUrl }],

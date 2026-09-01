@@ -216,6 +216,8 @@ export default function App() {
     return cleanupInsets;
   }, []);
 
+  
+
   useEffect(() => {
     fetchSavedData();
   }, [userId, activeTab]);
